@@ -52,3 +52,17 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 例如 `Add author profile` 或 `Fix RSS metadata`。Pull Request 应说明变更内容、
 影响的页面或内容集合，关联相关 issue；涉及 UI、排版或图片变更时附截图。提交评审前
 确保格式检查和构建通过。
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage labels are used: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout. See `docs/agents/domain.md`.
