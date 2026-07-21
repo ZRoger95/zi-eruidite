@@ -10,6 +10,7 @@ import "@/styles/typography-block.css"
 import "@/styles/typography-tables.css"
 import "@/styles/typography-math.css"
 import "@/styles/callout.css"
+import "@/styles/home.css"
 import "@/styles/layout.css"
 import "@/styles/icon-button.css"
 import "@/styles/bar.css"
@@ -18,34 +19,46 @@ import "@/styles/shape.css"
 import Footer from "@/components/Footer.astro"
 import MetaHead from "@/components/MetaHead.astro"
 import Sidebar from "@/components/Sidebar.astro"
+import Topbar from "@/components/Topbar.astro"
 import { SITE } from "@/consts"
 
 type Props = { crumbs?: { label: string; href: string }[] }
 
 const { crumbs } = Astro.props
+const isTopbar = SITE.layout === "topbar"
 ---
 
 <html lang={SITE.locale} dir={SITE.dir}>
   <MetaHead>
     <slot name="head" />
   </MetaHead>
-  <body>
-    <page-grid>
-      <page-header>
-        <page-nav>
-          <Sidebar crumbs={crumbs}
-            ><slot name="actions" slot="actions" /></Sidebar
-          >
-        </page-nav>
-        {Astro.slots.has("toc") && (
+  <body data-layout={SITE.layout}>
+    {isTopbar ? (
+      <>
+        <Topbar><slot name="actions" slot="actions" /></Topbar>
+        <page-content-topbar>
+          <main><slot /></main>
+          <page-footer><Footer /></page-footer>
+        </page-content-topbar>
+      </>
+    ) : (
+      <page-grid>
+        <page-header>
+          <page-nav>
+            <Sidebar crumbs={crumbs}
+              ><slot name="actions" slot="actions" /></Sidebar
+            >
+          </page-nav>
+          {Astro.slots.has("toc") && (
             <page-toc><slot name="toc" /></page-toc>
           )}
-      </page-header>
-      <page-content>
-        <main><slot /></main>
-        <page-footer><Footer /></page-footer>
-      </page-content>
-    </page-grid>
+        </page-header>
+        <page-content>
+          <main><slot /></main>
+          <page-footer><Footer /></page-footer>
+        </page-content>
+      </page-grid>
+    )}
   </body>
 </html>
 
@@ -108,6 +121,25 @@ const { crumbs } = Astro.props
       inset-block: var(--page-offset-top) var(--page-offset-bottom);
       inset-inline-end: var(--grid-edge);
       width: calc(3 * var(--grid-column-width) + 2 * var(--grid-gutter));
+    }
+  }
+
+  page-content-topbar {
+    display: flex;
+    flex-direction: column;
+    max-width: var(--grid-max-width);
+    margin-inline: auto;
+    padding-inline: var(--grid-gutter);
+    padding-block-start: var(--space-xl);
+    min-height: 100svh;
+
+    main {
+      flex: 1;
+    }
+
+    page-footer {
+      display: block;
+      margin-block-start: var(--space-xl);
     }
   }
 

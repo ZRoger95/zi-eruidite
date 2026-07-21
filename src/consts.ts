@@ -11,6 +11,10 @@ export const SITE = {
   dir: "ltr",
   defaultPageImage: "/static/opengraph-image.png",
   defaultPostImage: "/static/1200x630.png",
+  /** Path to the avatar image for the homepage hero. Place image in public/ and reference it here. */
+  avatar: undefined as string | undefined,
+  /** Layout mode: "sidebar" (default, two-column with sidebar) or "topbar" (top navigation, centered content). */
+  layout: "sidebar" as "sidebar" | "topbar",
 } as const
 
 export const NAVIGATION = [
