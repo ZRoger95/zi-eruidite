@@ -21,18 +21,38 @@ import MetaHead from "@/components/MetaHead.astro"
 import Sidebar from "@/components/Sidebar.astro"
 import Topbar from "@/components/Topbar.astro"
 import { SITE } from "@/consts"
+import type { BackgroundStyle } from "@/consts"
 
 type Props = { crumbs?: { label: string; href: string }[] }
 
 const { crumbs } = Astro.props
 const isTopbar = SITE.layout === "topbar"
+
+// Compute background CSS custom properties
+const bg = SITE.background
+const bgImage = bg?.image ? `url(${bg.image})` : undefined
+const bgColor = bg?.color
+const hasBackground = !!(bgImage || bgColor)
+const bgStyle: BackgroundStyle = bg?.style ?? "cover"
+const bgOpacity = bg?.opacity ?? 1
+const bgSize = bgStyle === "tile" ? "auto" : bgStyle
+const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
 ---
 
 <html lang={SITE.locale} dir={SITE.dir}>
   <MetaHead>
     <slot name="head" />
   </MetaHead>
-  <body data-layout={SITE.layout}>
+  <body
+    data-layout={SITE.layout}
+    style={hasBackground ? Object.assign({
+      "--bg-image": bgImage ?? "none",
+      "--bg-color": bgColor ?? "transparent",
+      "--bg-size": bgSize,
+      "--bg-repeat": bgRepeat,
+      "--bg-opacity": String(bgOpacity),
+    }) : undefined}
+  >
     {isTopbar ? (
       <>
         <Topbar><slot name="actions" slot="actions" /></Topbar>
@@ -167,5 +187,26 @@ const isTopbar = SITE.layout === "topbar"
       max-inline-size: var(--measure);
       margin-inline: auto;
     }
+  }
+
+  /* Ensure content sits above the background pseudo-element */
+  page-grid,
+  page-content-topbar {
+    position: relative;
+    z-index: 1;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: var(--bg-image);
+    background-color: var(--bg-color);
+    background-size: var(--bg-size);
+    background-repeat: var(--bg-repeat);
+    background-position: center;
+    opacity: var(--bg-opacity);
   }
 </style>
