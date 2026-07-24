@@ -43,7 +43,7 @@ const authors = await getEntries(post.data.authors)
       {post.data.tags && (
           <entry-tags>
             {post.data.tags.map((tag) => (
-              <span>#{tag}</span>
+              <a href={`/tags/${tag}`}>#{tag}</a>
             ))}
           </entry-tags>
         )}
