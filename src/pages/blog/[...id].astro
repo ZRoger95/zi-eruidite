@@ -5,6 +5,7 @@ import ScrollToTop from "@/components/ScrollToTop.astro"
 import SeriesReader from "@/components/SeriesReader.astro"
 import TableOfContents from "@/components/TableOfContents.astro"
 import Layout from "@/layouts/Layout.astro"
+import { SITE } from "@/consts"
 import { getPosts, getSubposts, pageTitle } from "@/lib/content"
 import { formatDate, isSubpost, subpostSlug } from "@/lib/utils"
 import { Image } from "astro:assets"
@@ -54,6 +55,7 @@ const crumbs = [{ label: parent.data.title, href: `/blog/${parent.id}` }]
 if (isSubpost(post.id)) {
   crumbs.push({ label: post.data.title, href: `/blog/${post.id}` })
 }
+const isTopbar = SITE.layout === "topbar"
 ---
 
 <Layout crumbs={crumbs}>
@@ -77,7 +79,19 @@ if (isSubpost(post.id)) {
         data-url={`/blog/${entry.id}`}
         data-title={pageTitle(entry.data.title)}
         data-embedded={i > 0 || undefined}
+        data-article-topbar={isTopbar || undefined}
       >
+        {isTopbar && entry.data.image && (
+          <post-banner>
+            <Image
+              src={entry.data.image}
+              alt={entry.data.title}
+              width={1200}
+              height={630}
+              priority={entry.id === post.id || undefined}
+            />
+          </post-banner>
+        )}
         <header>
           <h1>{entry.data.title}</h1>
           <post-meta>
@@ -113,7 +127,7 @@ if (isSubpost(post.id)) {
           </post-meta>
           <p>{entry.data.description}</p>
         </header>
-        {entry.data.image && (
+        {!isTopbar && entry.data.image && (
           <post-banner>
             <Image
               src={entry.data.image}
@@ -229,5 +243,29 @@ if (isSubpost(post.id)) {
       inline-size: 100%;
       block-size: auto;
     }
+  }
+
+  [data-article-topbar] {
+    header {
+      text-align: center;
+
+      post-meta {
+        justify-content: center;
+      }
+    }
+
+    post-banner {
+      margin-block-end: var(--space-m);
+    }
+
+    prose-content {
+      display: block;
+      max-width: var(--measure);
+      margin-inline: auto;
+    }
+  }
+
+  html[data-fullwidth] [data-article-topbar] prose-content {
+    max-width: 100%;
   }
 </style>

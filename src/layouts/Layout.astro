@@ -57,7 +57,12 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
       <>
         <Topbar><slot name="actions" slot="actions" /></Topbar>
         <page-content-topbar>
-          <main><slot /></main>
+          <topbar-article>
+            {Astro.slots.has("toc") && (
+              <page-toc><slot name="toc" /></page-toc>
+            )}
+            <main><slot /></main>
+          </topbar-article>
           <page-footer><Footer /></page-footer>
         </page-content-topbar>
       </>
@@ -147,19 +152,59 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
   page-content-topbar {
     display: flex;
     flex-direction: column;
-    max-width: var(--grid-max-width);
+    max-width: 50rem;
     margin-inline: auto;
     padding-inline: var(--grid-gutter);
     padding-block-start: var(--space-xl);
-    min-height: 100svh;
 
     main {
       flex: 1;
+      min-width: 0;
     }
 
     page-footer {
       display: block;
       margin-block-start: var(--space-xl);
+    }
+
+    &:has(page-toc) {
+      @media (width < 64rem) {
+        max-width: 50rem;
+      }
+    }
+  }
+
+  topbar-article {
+    display: flex;
+    gap: var(--space-l);
+    align-items: flex-start;
+
+    page-toc {
+      flex-shrink: 0;
+      width: 14rem;
+      position: sticky;
+      top: calc(var(--space-2xs) + 2rem + var(--space-m));
+      max-height: calc(
+        100svh - var(--space-2xs) - 2rem - var(--space-m) - var(--space-xl)
+      );
+      overflow-y: auto;
+    }
+
+    @media (width < 64rem) {
+      flex-direction: column;
+
+      page-toc {
+        width: 100%;
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+      }
+    }
+  }
+
+  html[data-fullwidth] {
+    page-content-topbar:has(page-toc) {
+      max-width: 100%;
     }
   }
 
