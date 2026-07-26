@@ -27,7 +27,7 @@ export const SITE = {
   /** Path to the avatar image for the homepage hero. Place image in public/ and reference it here. */
   avatar: undefined as string | undefined,
   /** Layout mode: "sidebar" (default, two-column with sidebar) or "topbar" (top navigation, centered content). */
-  layout: "topbar",
+  layout: "sidebar" as "sidebar" | "topbar",
   /** Background image configuration. When undefined, no background image is applied. */
   background: undefined as BackgroundConfig | undefined,
 } as const
