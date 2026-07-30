@@ -1,12 +1,16 @@
 ---
 import BlogCard from "@/components/BlogCard.astro"
+import MomentCard from "@/components/MomentCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
 import { SITE } from "@/consts"
-import { getPosts } from "@/lib/content"
+import { getMoments, getPosts } from "@/lib/content"
 
 const posts = await getPosts()
 const latestPosts = posts.slice(0, 5)
+const moments = SITE.momentsOnHome
+  ? (await getMoments()).slice(0, SITE.momentsOnHome.count)
+  : []
 ---
 
 <Layout>
@@ -49,4 +53,49 @@ const latestPosts = posts.slice(0, 5)
       {latestPosts.map((post) => <BlogCard post={post} />)}
     </ul>
   </latest-section>
+
+  {moments.length > 0 && (
+    <latest-section>
+      <h2>
+        最新动态
+        <a href="/moments" class="see-all">查看全部 →</a>
+      </h2>
+      <div class="moments-list">
+        {moments.map((moment) => (
+          <a
+            href={`/moments/${moment.id}`}
+            class="moment-home-link"
+          >
+            <MomentCard moment={moment} />
+          </a>
+        ))}
+      </div>
+    </latest-section>
+  )}
 </Layout>
+
+<style>
+  .see-all {
+    font-size: var(--step--1);
+    font-weight: 400;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    margin-left: var(--space-s);
+    transition: color 0.15s;
+  }
+
+  .see-all:hover {
+    color: var(--accent);
+  }
+
+  .moments-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-m);
+  }
+
+  .moment-home-link {
+    text-decoration: none;
+    color: inherit;
+  }
+</style>

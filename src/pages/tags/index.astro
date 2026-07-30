@@ -1,19 +1,24 @@
 ---
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
-import { getTags } from "@/lib/content"
+import { getAllTags } from "@/lib/content"
 
-const tags = await getTags()
+const tags = await getAllTags()
 ---
 
 <Layout crumbs={[{ label: "Tags", href: "/tags" }]}>
   <MetaPage slot="head" title="Tags" noindex />
   <ul>
-    {[...tags].map(([tag, posts]) => (
-        <li>
-          <a href={`/tags/${tag}`}>#{tag}<tag-count>{posts.length}</tag-count></a>
-        </li>
-      ))}
+    {[...tags].map(([tag, { blog, moments }]) => {
+        const total = blog.length + moments.length
+        return (
+          <li>
+            <a href={`/tags/${tag}`}
+              >#{tag}<tag-count>{total}</tag-count></a
+            >
+          </li>
+        )
+      })}
   </ul>
 </Layout>
 

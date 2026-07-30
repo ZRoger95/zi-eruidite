@@ -1,0 +1,230 @@
+---
+import MomentCard from "@/components/MomentCard.astro"
+import MetaPage from "@/components/MetaPage.astro"
+import Layout from "@/layouts/Layout.astro"
+import { getMoments } from "@/lib/content"
+import type { CollectionEntry } from "astro:content"
+
+const PAGE_SIZE = 20
+const allMoments = await getMoments()
+
+// Get page number from URL query param (?page=2) or first page
+const currentPage = Number(Astro.url.searchParams.get("page") || 1)
+const totalPages = Math.max(1, Math.ceil(allMoments.length / PAGE_SIZE))
+const start = (currentPage - 1) * PAGE_SIZE
+const moments = allMoments.slice(start, start + PAGE_SIZE)
+
+// Group moments by date for separators
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  month: "long",
+  day: "numeric",
+  timeZone: "Asia/Shanghai",
+})
+
+function groupByDate(
+  items: CollectionEntry<"moments">[],
+): { label: string; moments: CollectionEntry<"moments">[] }[] {
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const dayBefore = new Date(today)
+  dayBefore.setDate(dayBefore.getDate() - 2)
+
+  const todayStr = today.toDateString()
+  const yesterdayStr = yesterday.toDateString()
+  const dayBeforeStr = dayBefore.toDateString()
+
+  const groups = new Map<string, CollectionEntry<"moments">[]>()
+  for (const m of items) {
+    const key = m.data.date.toDateString()
+    const group = groups.get(key)
+    if (group) group.push(m)
+    else groups.set(key, [m])
+  }
+
+  return [...groups].map(([key, g]) => {
+    let label: string
+    if (key === todayStr) label = "今天"
+    else if (key === yesterdayStr) label = "昨天"
+    else if (key === dayBeforeStr) label = "前天"
+    else label = dateFormatter.format(g[0].data.date)
+    return { label, moments: g }
+  })
+}
+
+const grouped = groupByDate(moments)
+
+function pageUrl(p: number): string {
+  return p === 1 ? "/moments" : `/moments?page=${p}`
+}
+---
+
+<Layout>
+  <MetaPage slot="head" title="动态" description="短动态、闪念与随手记录。" />
+  <div class="timeline-page">
+    <h1 class="timeline-title">动态</h1>
+    <div class="timeline">
+      <div class="timeline-rail"></div>
+      {
+        grouped.map(({ label, moments: groupMoments }) => (
+          <div class="date-group">
+            <div class="date-separator">
+              <span class="date-label">{label}</span>
+            </div>
+            {groupMoments.map((moment) => (
+              <div class="moment-link-wrapper">
+                <a
+                  href={`/moments/${moment.id}`}
+                  class="timeline-dot"
+                  aria-label={`动态 · ${moment.data.date.toISOString()}`}
+                ></a>
+                <MomentCard moment={moment} />
+              </div>
+            ))}
+          </div>
+        ))
+      }
+      {moments.length === 0 && (
+        <p class="empty">还没有动态。</p>
+      )}
+    </div>
+    {
+      totalPages > 1 && (
+        <nav class="pagination">
+          {currentPage > 1 && (
+            <a href={pageUrl(currentPage - 1)}>← 上一页</a>
+          )}
+          <span>{currentPage} / {totalPages}</span>
+          {currentPage < totalPages && (
+            <a href={pageUrl(currentPage + 1)}>下一页 →</a>
+          )}
+        </nav>
+      )
+    }
+  </div>
+</Layout>
+
+<style>
+  .timeline-page {
+    max-width: 640px;
+  }
+
+  .timeline-title {
+    font-size: var(--step-3);
+    font-weight: 510;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: var(--space-xl);
+  }
+
+  .timeline {
+    position: relative;
+  }
+
+  /* Vertical rail — real element for reliable stacking */
+  .timeline-rail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 19px;
+    width: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+
+  .date-group {
+    margin-bottom: var(--space-s);
+  }
+
+  .date-separator {
+    position: relative;
+    padding-left: 52px;
+    padding-bottom: var(--space-xs);
+  }
+
+  .date-label {
+    font-size: var(--step--1);
+    font-weight: 450;
+    letter-spacing: 0.02em;
+    color: var(--muted-foreground);
+    line-height: 1.4;
+  }
+
+  .moment-link-wrapper {
+    display: block;
+    position: relative;
+    padding-left: 52px;
+    padding-bottom: var(--space-l);
+    color: inherit;
+  }
+
+  .moment-link-wrapper:last-child {
+    padding-bottom: 0;
+  }
+
+  .timeline-dot {
+    position: absolute;
+    left: 12px;
+    top: 0.35em;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-full);
+    background: var(--background);
+    border: 2px solid var(--border);
+    z-index: 2;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-decoration: none;
+  }
+
+  .timeline-dot:hover {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  /* Highlight time text when dot is hovered */
+  .moment-link-wrapper:has(.timeline-dot:hover) :global(time) {
+    color: var(--accent);
+  }
+
+  .empty {
+    color: var(--muted-foreground);
+    font-size: var(--step--1);
+    padding-left: 52px;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-m);
+    margin-top: var(--space-xl);
+    padding-left: 52px;
+    font-size: var(--step--1);
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Dot fills on hover (triggered by dot or time hover) */
+  .moment-link-wrapper:has(.timeline-dot:hover) .timeline-dot,
+  .moment-link-wrapper:has(.moment-time-link:hover) .timeline-dot {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* Time text highlights when dot or time is hovered */
+  .moment-link-wrapper:has(.timeline-dot:hover) .moment-time-link time,
+  .moment-link-wrapper:has(.moment-time-link:hover) .moment-time-link time {
+    color: var(--accent);
+  }
+</style>

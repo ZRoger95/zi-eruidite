@@ -1,21 +1,35 @@
 ---
 import BlogCard from "@/components/BlogCard.astro"
+import MomentCard from "@/components/MomentCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
-import { getTags } from "@/lib/content"
+import { getAllTags } from "@/lib/content"
 import type { CollectionEntry } from "astro:content"
 
 export async function getStaticPaths() {
-  const tags = await getTags()
-  return [...tags].map(([tag, posts]) => ({
+  const tags = await getAllTags()
+  return [...tags].map(([tag, { blog, moments }]) => ({
     params: { id: tag },
-    props: { tag, posts },
+    props: { tag, blog, moments },
   }))
 }
 
-type Props = { tag: string; posts: CollectionEntry<"blog">[] }
+type Props = {
+  tag: string
+  blog: CollectionEntry<"blog">[]
+  moments: CollectionEntry<"moments">[]
+}
 
-const { tag, posts } = Astro.props
+const { tag, blog, moments } = Astro.props
+
+const allItems = [
+  ...blog.map((p) => ({ type: "blog" as const, date: p.data.date, entry: p })),
+  ...moments.map((m) => ({
+    type: "moment" as const,
+    date: m.data.date,
+    entry: m,
+  })),
+].sort((a, b) => b.date.getTime() - a.date.getTime())
 ---
 
 <Layout
@@ -26,19 +40,42 @@ const { tag, posts } = Astro.props
 >
   <MetaPage
     slot="head"
-    title={`Posts tagged "${tag}"`}
-    description={`A collection of posts tagged with ${tag}.`}
+    title={`#${tag}`}
+    description={`Content tagged with ${tag}.`}
     noindex
   />
-  <ul>
-    {posts.map((post) => <BlogCard post={post} />)}
-  </ul>
+  <div class="tag-page">
+    {allItems.length === 0 && <p class="empty">No content tagged with #{tag}.</p>}
+    {allItems.map((item) =>
+      item.type === "blog" ? (
+        <BlogCard post={item.entry as CollectionEntry<"blog">} />
+      ) : (
+        <a
+          href={`/moments/${(item.entry as CollectionEntry<"moments">).id}`}
+          class="moment-link"
+        >
+          <MomentCard moment={item.entry as CollectionEntry<"moments">} />
+        </a>
+      ),
+    )}
+  </div>
 </Layout>
 
 <style>
-  ul {
+  .tag-page {
     display: flex;
     flex-direction: column;
     gap: var(--space-m);
+    max-width: 640px;
+  }
+
+  .empty {
+    color: var(--muted-foreground);
+    font-size: var(--step--1);
+  }
+
+  .moment-link {
+    text-decoration: none;
+    color: inherit;
   }
 </style>

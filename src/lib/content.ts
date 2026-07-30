@@ -49,3 +49,53 @@ export async function getTags(): Promise<
     ),
   )
 }
+
+export async function getMoments(): Promise<
+  CollectionEntry<"moments">[]
+> {
+  const moments = await getCollection("moments", ({ data }) => !data.draft)
+  return moments.sort(
+    (a, b) => b.data.date.getTime() - a.data.date.getTime(),
+  )
+}
+
+/** Returns a merged tag map across both Blog posts and Moments. */
+export async function getAllTags(): Promise<
+  Map<string, { blog: CollectionEntry<"blog">[]; moments: CollectionEntry<"moments">[] }>
+> {
+  const posts = await getPosts()
+  const series = await getSubposts()
+  const moments = await getMoments()
+  const tags = new Map<
+    string,
+    { blog: CollectionEntry<"blog">[]; moments: CollectionEntry<"moments">[] }
+  >()
+
+  for (const post of posts) {
+    const chain = [post, ...(series.get(post.id) ?? [])]
+    for (const tag of new Set(
+      chain.flatMap((entry) => entry.data.tags ?? []),
+    )) {
+      const entry = tags.get(tag)
+      if (entry) entry.blog.push(post)
+      else tags.set(tag, { blog: [post], moments: [] })
+    }
+  }
+
+  for (const moment of moments) {
+    for (const tag of moment.data.tags ?? []) {
+      const entry = tags.get(tag)
+      if (entry) entry.moments.push(moment)
+      else tags.set(tag, { blog: [], moments: [moment] })
+    }
+  }
+
+  return new Map(
+    [...tags].sort(
+      ([a, aItems], [b, bItems]) =>
+        (bItems.blog.length + bItems.moments.length) -
+          (aItems.blog.length + aItems.moments.length) ||
+        a.localeCompare(b),
+    ),
+  )
+}

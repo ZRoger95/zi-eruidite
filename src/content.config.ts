@@ -52,4 +52,24 @@ const projects = defineCollection({
     }),
 })
 
-export const collections = { blog, authors, projects }
+const moments = defineCollection({
+  loader: glob({
+    pattern: "**/[^_]*.md",
+    base: "./src/content/moments",
+  }),
+  schema: ({ image }) =>
+    z.object({
+      date: z.coerce.date(),
+      tags: z.array(z.string()).optional(),
+      draft: z.boolean().optional(),
+      link: z
+        .object({
+          url: z.url(),
+          title: z.string().optional(),
+          thumbnail: image().optional(),
+        })
+        .optional(),
+    }),
+})
+
+export const collections = { blog, authors, projects, moments }
