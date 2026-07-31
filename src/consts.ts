@@ -30,10 +30,13 @@ export const SITE = {
   layout: "sidebar" as "sidebar" | "topbar",
   /** Background image configuration. When undefined, no background image is applied. */
   background: undefined as BackgroundConfig | undefined,
+  /** Show recent Moments on the homepage. When undefined, Moments are not shown. Set { count: N } to display the latest N moments. */
+  momentsOnHome: undefined as { count: number } | undefined,
 } as const
 
 export const NAVIGATION = [
   { href: "/blog", label: "Blog" },
+  { href: "/moments", label: "Moments" },
   { href: "/tags", label: "Tags" },
   { href: "/projects", label: "Projects" },
   { href: "/authors", label: "Authors" },
