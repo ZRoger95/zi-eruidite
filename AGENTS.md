@@ -54,8 +54,8 @@ npm 工作流（当用户偏好 npm 时优先使用）：
 - `npm run format`：使用 Biome 格式化支持的文件。
 - `npm run format:check`：只检查格式，不写入更改。
 
-当前仓库没有 `package-lock.json`。若使用 npm 安装，建议提交 `package-lock.json`
-以保持锁文件一致。
+仓库同时跟踪 `bun.lock` 与 `package-lock.json`，两种包管理器的依赖版本均已锁定，
+可放心按用户偏好选用 Bun 或 npm。
 
 ## 代码风格与命名约定
 
