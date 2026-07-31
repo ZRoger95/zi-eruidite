@@ -10,11 +10,15 @@ import { calloutDirective } from "./src/lib/callout"
 import { externalLinks } from "./src/lib/external-links"
 import { headingNamespace } from "./src/lib/heading-namespace"
 import { headingAnchors } from "./src/lib/heading-anchors"
+import { momentComposerPlugin } from "./src/lib/moment-composer-plugin"
 
 export default defineConfig({
   site: "https://astro-erudite.vercel.app",
   compressHTML: true,
   prefetch: { prefetchAll: true },
+  vite: {
+    plugins: [momentComposerPlugin()],
+  },
   integrations: [
     sitemap({
       filter: (page) =>

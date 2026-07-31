@@ -50,18 +50,17 @@ export async function getTags(): Promise<
   )
 }
 
-export async function getMoments(): Promise<
-  CollectionEntry<"moments">[]
-> {
+export async function getMoments(): Promise<CollectionEntry<"moments">[]> {
   const moments = await getCollection("moments", ({ data }) => !data.draft)
-  return moments.sort(
-    (a, b) => b.data.date.getTime() - a.data.date.getTime(),
-  )
+  return moments.sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
 }
 
 /** Returns a merged tag map across both Blog posts and Moments. */
 export async function getAllTags(): Promise<
-  Map<string, { blog: CollectionEntry<"blog">[]; moments: CollectionEntry<"moments">[] }>
+  Map<
+    string,
+    { blog: CollectionEntry<"blog">[]; moments: CollectionEntry<"moments">[] }
+  >
 > {
   const posts = await getPosts()
   const series = await getSubposts()
@@ -93,9 +92,9 @@ export async function getAllTags(): Promise<
   return new Map(
     [...tags].sort(
       ([a, aItems], [b, bItems]) =>
-        (bItems.blog.length + bItems.moments.length) -
-          (aItems.blog.length + aItems.moments.length) ||
-        a.localeCompare(b),
+        bItems.blog.length +
+          bItems.moments.length -
+          (aItems.blog.length + aItems.moments.length) || a.localeCompare(b),
     ),
   )
 }

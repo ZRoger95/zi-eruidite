@@ -16,6 +16,7 @@
   --red-11: light-dark(#ce2c31, #ff9592);
 
   --accent:            light-dark(#2563eb, #60a5fa);
+  --accent-foreground: light-dark(#ffffff, var(--gray-1));
 
   --background:         var(--gray-1);
   --foreground:         var(--gray-12);

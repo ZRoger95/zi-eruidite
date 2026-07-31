@@ -24,11 +24,13 @@ const dateStr = new Intl.DateTimeFormat("zh-CN", {
   <a href={`/moments/${moment.id}`} class="moment-time-link">
     <time datetime={moment.data.date.toISOString()}>{dateStr}</time>
   </a>
-  <div class="moment-body" data-images={imageCount > 0 ? imageCount : undefined}>
+  <div
+    class="moment-body"
+    data-images={imageCount > 0 ? imageCount : undefined}
+  >
     <Content />
   </div>
-  {
-    moment.data.link && (
+  {moment.data.link && (
       <a
         href={moment.data.link.url}
         class="moment-link"
@@ -52,17 +54,14 @@ const dateStr = new Intl.DateTimeFormat("zh-CN", {
           <span class="moment-link-url">{moment.data.link.url}</span>
         </div>
       </a>
-    )
-  }
-  {
-    moment.data.tags && moment.data.tags.length > 0 && (
+    )}
+  {moment.data.tags && moment.data.tags.length > 0 && (
       <div class="moment-tags">
         {moment.data.tags.map((tag) => (
           <a href={`/tags/${tag}`}>#{tag}</a>
         ))}
       </div>
-    )
-  }
+    )}
 </article>
 
 <style>

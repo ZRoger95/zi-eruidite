@@ -185,7 +185,11 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
       position: sticky;
       top: calc(var(--space-2xs) + 2rem + var(--space-m));
       max-height: calc(
-        100svh - var(--space-2xs) - 2rem - var(--space-m) - var(--space-xl)
+        100svh -
+        var(--space-2xs) -
+        2rem -
+        var(--space-m) -
+        var(--space-xl)
       );
       overflow-y: auto;
     }

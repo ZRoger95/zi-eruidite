@@ -42,3 +42,9 @@
 
 - **Topbar Layout** — a site layout mode where global navigation is placed in a centered top navigation bar and primary page content uses a centered reading column across main pages, not only individual blog posts.
 - **Article Header Display** — the wider, centered top portion of a blog article in Topbar Layout, containing breadcrumbs, the banner image, title, and metadata before the narrower reading column begins.
+
+## Editing / Production
+
+- **Moment Composer（动态发布器）** — an authoring bar at the top of the `/moments` timeline that exists only in the editing environment (`astro dev`). It lets the author type plain-text Markdown and create a new Moment by writing a file under `src/content/moments/`. In the production build it is absent entirely — no markup, no endpoint, no requests — rather than hidden.
+- **发布动态（publish a Moment）** — the act of creating a new Moment through the Moment Composer. It is an authoring action performed while editing the repository, not a social-platform-style "posting".
+- **Editing environment（编辑环境）** — the local `astro dev` state; the only place the Moment Composer exists. Contrast with the **production site（生产站点）**, the output of `astro build` / `astro preview`, which never includes the composer.

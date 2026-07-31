@@ -1,5 +1,6 @@
 ---
 import MomentCard from "@/components/MomentCard.astro"
+import MomentComposer from "@/components/MomentComposer.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
 import { getMoments } from "@/lib/content"
@@ -63,10 +64,10 @@ function pageUrl(p: number): string {
   <MetaPage slot="head" title="动态" description="短动态、闪念与随手记录。" />
   <div class="timeline-page">
     <h1 class="timeline-title">动态</h1>
+    <MomentComposer />
     <div class="timeline">
       <div class="timeline-rail"></div>
-      {
-        grouped.map(({ label, moments: groupMoments }) => (
+      {grouped.map(({ label, moments: groupMoments }) => (
           <div class="date-group">
             <div class="date-separator">
               <span class="date-label">{label}</span>
@@ -82,14 +83,12 @@ function pageUrl(p: number): string {
               </div>
             ))}
           </div>
-        ))
-      }
+        ))}
       {moments.length === 0 && (
         <p class="empty">还没有动态。</p>
       )}
     </div>
-    {
-      totalPages > 1 && (
+    {totalPages > 1 && (
         <nav class="pagination">
           {currentPage > 1 && (
             <a href={pageUrl(currentPage - 1)}>← 上一页</a>
@@ -99,8 +98,7 @@ function pageUrl(p: number): string {
             <a href={pageUrl(currentPage + 1)}>下一页 →</a>
           )}
         </nav>
-      )
-    }
+      )}
   </div>
 </Layout>
 
@@ -174,7 +172,9 @@ function pageUrl(p: number): string {
     border: 2px solid var(--border);
     z-index: 2;
     cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
+    transition:
+      border-color 0.2s,
+      background 0.2s;
     text-decoration: none;
   }
 
