@@ -16,6 +16,7 @@ if (import.meta.env.PROD) return
     <p class="compose-status" role="status" aria-live="polite"></p>
   </div>
   <div class="compose-actions">
+    <span class="compose-hint">⌘⏎ 发布</span>
     <button class="compose-submit" type="submit" disabled>发布</button>
   </div>
 </form>
@@ -30,6 +31,12 @@ if (import.meta.env.PROD) return
     const textarea = form.querySelector<HTMLTextAreaElement>(".compose-input")!
     const submit = form.querySelector<HTMLButtonElement>(".compose-submit")!
     const status = form.querySelector<HTMLElement>(".compose-status")!
+    const hint = form.querySelector<HTMLElement>(".compose-hint")!
+
+    // 非 macOS 平台改用 Ctrl 提示
+    if (!/Mac|iPhone|iPad|iPod/.test(navigator.platform)) {
+      hint.textContent = "Ctrl⏎ 发布"
+    }
 
     function autoGrow() {
       textarea.style.height = "auto"
@@ -87,10 +94,15 @@ if (import.meta.env.PROD) return
     display: flex;
     align-items: flex-start;
     gap: var(--space-m);
-    padding: var(--space-m);
+    padding: var(--space-xs);
     margin-bottom: var(--space-l);
-    background: var(--muted);
+    background: var(--background);
+    border: 1px solid var(--border);
     border-radius: var(--radius-xl);
+  }
+
+  .compose-bar:focus-within {
+    border-color: color-mix(in oklab, var(--accent) 55%, var(--border));
   }
 
   .compose-field {
@@ -113,6 +125,11 @@ if (import.meta.env.PROD) return
     padding: 0;
   }
 
+  .compose-input:focus-visible {
+    background: color-mix(in oklab, var(--muted) 45%, transparent);
+    border-radius: var(--radius-sm);
+  }
+
   .compose-input::placeholder {
     color: var(--muted-foreground);
   }
@@ -120,7 +137,14 @@ if (import.meta.env.PROD) return
   .compose-actions {
     display: flex;
     align-items: center;
+    gap: var(--space-s);
     flex-shrink: 0;
+  }
+
+  .compose-hint {
+    font-size: var(--step--1);
+    color: var(--muted-foreground);
+    white-space: nowrap;
   }
 
   .compose-submit {
@@ -128,7 +152,7 @@ if (import.meta.env.PROD) return
     font-size: var(--step--1);
     font-weight: 510;
     letter-spacing: 0.02em;
-    padding: var(--space-xs) var(--space-m);
+    padding: var(--space-3xs) var(--space-s);
     border-radius: var(--radius-full);
     border: none;
     background: var(--accent);

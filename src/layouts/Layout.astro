@@ -53,6 +53,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
       "--bg-opacity": String(bgOpacity),
     }) : undefined}
   >
+    <a class="skip-link" href="#main-content">跳到主内容</a>
     {isTopbar ? (
       <>
         <Topbar><slot name="actions" slot="actions" /></Topbar>
@@ -61,7 +62,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
             {Astro.slots.has("toc") && (
               <page-toc><slot name="toc" /></page-toc>
             )}
-            <main><slot /></main>
+            <main id="main-content"><slot /></main>
           </topbar-article>
           <page-footer><Footer /></page-footer>
         </page-content-topbar>
@@ -79,7 +80,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
           )}
         </page-header>
         <page-content>
-          <main><slot /></main>
+          <main id="main-content"><slot /></main>
           <page-footer><Footer /></page-footer>
         </page-content>
       </page-grid>
@@ -88,6 +89,26 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
 </html>
 
 <style>
+  .skip-link {
+    position: fixed;
+    top: var(--space-2xs);
+    inset-inline-start: var(--space-2xs);
+    z-index: 100;
+    padding: var(--space-2xs) var(--space-s);
+    border-radius: var(--radius-sm);
+    background: var(--background);
+    color: var(--accent);
+    border: 1px solid var(--border);
+    font-size: var(--step--1);
+    text-decoration: none;
+    transform: translateY(calc(-100% - var(--space-2xs)));
+    transition: transform 0.15s;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
   page-grid {
     position: relative;
     isolation: isolate;

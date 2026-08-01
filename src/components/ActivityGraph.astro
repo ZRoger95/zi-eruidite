@@ -1,0 +1,314 @@
+---
+import type { CollectionEntry } from "astro:content"
+import {
+  buildYearData,
+  countByDay,
+  deserializeYearMap,
+  formatCaption,
+  getYears,
+  renderGrid,
+  renderSrList,
+  serializeYearMaps,
+} from "@/lib/activity-graph"
+
+type Props = { moments: CollectionEntry<"moments">[] }
+
+const { moments } = Astro.props
+
+const currentYear = new Date().getFullYear()
+const entries = moments.map((m) => ({ date: m.data.date }))
+const dayCounts = countByDay(entries)
+const years = getYears(entries)
+const yearMaps = serializeYearMaps(dayCounts, years)
+const defaultData = buildYearData(dayCounts, currentYear)
+const todayStr = new Date().toDateString()
+
+const options = [currentYear, ...years.filter((y) => y !== currentYear)]
+---
+
+<figure
+  class="activity-graph"
+  data-activity-graph
+  data-years={JSON.stringify({ maps: yearMaps, currentYear })}
+>
+  <figcaption class="activity-caption">
+    <span data-caption
+      >{formatCaption(currentYear, defaultData.stats, currentYear)}</span
+    >
+    <label class="activity-year-label">
+      <span class="activity-sr-only">选择年份</span>
+      <select data-year-select>
+        {options.map((y) => (
+          <option value={y} selected={y === currentYear}>
+            {y === currentYear ? "今年" : y}
+          </option>
+        ))}
+      </select>
+    </label>
+  </figcaption>
+  <div class="activity-scroll">
+    <div
+      class="activity-grid"
+      data-grid
+      aria-hidden="true"
+      style={`--weeks: ${defaultData.weeks}`}
+      set:html={renderGrid(defaultData, todayStr)}
+    ></div>
+  </div>
+  <div class="activity-tooltip" data-tooltip aria-hidden="true"></div>
+  <div class="activity-legend" aria-hidden="true">
+    <span class="activity-legend-label">少</span>
+    {[0, 1, 2, 3, 4].map((level) => (
+      <span class="activity-legend-swatch" data-level={level}></span>
+    ))}
+    <span class="activity-legend-label">多</span>
+  </div>
+  <div
+    class="activity-sr-only"
+    data-sr-list
+    set:html={renderSrList(defaultData)}
+  ></div>
+</figure>
+
+<script>
+  import {
+    buildYearData,
+    deserializeYearMap,
+    formatCaption,
+    renderGrid,
+    renderSrList,
+    type YearData,
+  } from "@/lib/activity-graph"
+
+  ;(() => {
+    const root = document.querySelector<HTMLElement>("[data-activity-graph]")
+    if (!root) return
+    const select = root.querySelector<HTMLSelectElement>("[data-year-select]")
+    const grid = root.querySelector<HTMLElement>("[data-grid]")
+    const caption = root.querySelector<HTMLElement>("[data-caption]")
+    const srList = root.querySelector<HTMLElement>("[data-sr-list]")
+    const tooltip = root.querySelector<HTMLElement>("[data-tooltip]")
+    if (!select || !grid || !caption || !srList || !tooltip) return
+
+    let payload: {
+      years: number[]
+      maps: Record<string, Record<string, number>>
+      currentYear: number
+    }
+    try {
+      payload = JSON.parse(root.dataset.years ?? "{}")
+    } catch {
+      return
+    }
+
+    // 用箭头函数（而非函数声明）：在守卫窄化之后创建，捕获的 tooltip/root 保持非空
+    const hideTooltip = () => {
+      tooltip.classList.remove("is-visible")
+    }
+
+    const showTooltip = (cell: Element) => {
+      const tip = cell.getAttribute("data-tip")
+      if (!tip) return
+      tooltip.textContent = tip
+      const cellRect = cell.getBoundingClientRect()
+      const rootRect = root.getBoundingClientRect()
+      const tipW = tooltip.offsetWidth
+      const tipH = tooltip.offsetHeight
+      // 水平夹紧在图表边界内，边缘列提示不被裁剪
+      const left = Math.max(
+        0,
+        Math.min(
+          cellRect.left - rootRect.left + cellRect.width / 2 - tipW / 2,
+          rootRect.width - tipW,
+        ),
+      )
+      const top = Math.max(0, cellRect.top - rootRect.top - tipH - 6)
+      tooltip.style.left = `${left}px`
+      tooltip.style.top = `${top}px`
+      tooltip.classList.add("is-visible")
+    }
+
+    // 事件委托：年份切换重建网格后依然生效
+    grid.addEventListener("mouseover", (event) => {
+      const target = event.target as HTMLElement
+      const cell = target.closest(".activity-cell")
+      if (cell) showTooltip(cell)
+    })
+    grid.addEventListener("mouseleave", hideTooltip)
+
+    select.addEventListener("change", () => {
+      hideTooltip()
+      const year = Number(select.value)
+      const map = payload.maps[String(year)] ?? {}
+      const data: YearData = buildYearData(deserializeYearMap(year, map), year)
+      grid.innerHTML = renderGrid(
+        data,
+        year === payload.currentYear ? new Date().toDateString() : undefined,
+      )
+      grid.style.setProperty("--weeks", String(data.weeks))
+      caption.textContent = formatCaption(year, data.stats, payload.currentYear)
+      srList.innerHTML = renderSrList(data)
+    })
+  })()
+</script>
+
+<style is:global>
+  .activity-graph {
+    --activity-1: color-mix(in oklab, var(--accent) 30%, var(--background));
+    --activity-2: color-mix(in oklab, var(--accent) 55%, var(--background));
+    --activity-3: color-mix(in oklab, var(--accent) 80%, var(--background));
+    --cell: 9px;
+    --gap: 2px;
+    position: relative;
+    margin-bottom: var(--space-l);
+  }
+
+  .activity-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-s);
+    margin-bottom: var(--space-xs);
+    font-size: var(--step--1);
+    color: var(--muted-foreground);
+  }
+
+  .activity-year-label select {
+    font-family: var(--font-sans);
+    font-size: var(--step--1);
+    color: var(--muted-foreground);
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 2px var(--space-2xs);
+    cursor: pointer;
+  }
+
+  .activity-scroll {
+    /* clip 而非 auto：网格已自适应容器宽度，仅裁剪标签越界，不产生横向滚动条 */
+    overflow-x: clip;
+  }
+
+  .activity-grid {
+    display: grid;
+    /* minmax(0, 1fr)：列最小尺寸为 0，月份标签只视觉溢出、不撑大列宽 */
+    grid-template-columns: var(--gutter, 20px) repeat(
+        var(--weeks, 53),
+        minmax(0, 1fr)
+      );
+    grid-template-rows: auto repeat(7, auto);
+    column-gap: var(--gap);
+    row-gap: var(--gap);
+    /* 右侧留出末尾月份标签（如「12月」）的溢出空间 */
+    padding-right: 28px;
+  }
+
+  .activity-month {
+    align-self: start;
+    justify-self: start;
+    font-size: calc(var(--step--1) - 1px);
+    color: var(--muted-foreground);
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .activity-weekday {
+    align-self: center;
+    justify-self: end;
+    padding-right: 4px;
+    font-size: 10px;
+    line-height: 1;
+    color: var(--muted-foreground);
+  }
+
+  .activity-cell {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 2px;
+    background: var(--gray-4);
+  }
+
+  .activity-cell[data-level="1"] {
+    background: var(--activity-1);
+  }
+
+  .activity-cell[data-level="2"] {
+    background: var(--activity-2);
+  }
+
+  .activity-cell[data-level="3"] {
+    background: var(--activity-3);
+  }
+
+  .activity-cell[data-level="4"] {
+    background: var(--accent);
+  }
+
+  .activity-cell[data-today] {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .activity-tooltip {
+    position: absolute;
+    z-index: 30;
+    padding: var(--space-2xs) var(--space-xs);
+    border-radius: var(--radius-sm);
+    background: var(--foreground);
+    color: var(--background);
+    font-size: calc(var(--step--1) - 1px);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .activity-tooltip.is-visible {
+    opacity: 1;
+  }
+
+  .activity-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2xs);
+    margin-top: var(--space-2xs);
+    font-size: calc(var(--step--1) - 1px);
+    color: var(--muted-foreground);
+  }
+
+  .activity-legend-swatch {
+    width: var(--cell);
+    height: var(--cell);
+    border-radius: 2px;
+    background: var(--gray-4);
+  }
+
+  .activity-legend-swatch[data-level="1"] {
+    background: var(--activity-1);
+  }
+
+  .activity-legend-swatch[data-level="2"] {
+    background: var(--activity-2);
+  }
+
+  .activity-legend-swatch[data-level="3"] {
+    background: var(--activity-3);
+  }
+
+  .activity-legend-swatch[data-level="4"] {
+    background: var(--accent);
+  }
+
+  .activity-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
