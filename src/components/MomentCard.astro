@@ -2,9 +2,9 @@
 import { Image } from "astro:assets"
 import { render, type CollectionEntry } from "astro:content"
 
-type Props = { moment: CollectionEntry<"moments"> }
+type Props = { moment: CollectionEntry<"moments">; link?: boolean }
 
-const { moment } = Astro.props
+const { moment, link = true } = Astro.props
 const { Content } = await render(moment)
 
 // Count images in raw body to drive grid layout
@@ -21,9 +21,14 @@ const dateStr = new Intl.DateTimeFormat("zh-CN", {
 ---
 
 <article class="moment-card">
-  <a href={`/moments/${moment.id}`} class="moment-time-link">
-    <time datetime={moment.data.date.toISOString()}>{dateStr}</time>
-  </a>
+  {link && (
+    <a
+      href={`/moments/${moment.id}`}
+      class="moment-card-link"
+      aria-label={`查看动态详情 · ${dateStr}`}
+    ></a>
+  )}
+  <time datetime={moment.data.date.toISOString()}>{dateStr}</time>
   <div
     class="moment-body"
     data-images={imageCount > 0 ? imageCount : undefined}
@@ -31,55 +36,84 @@ const dateStr = new Intl.DateTimeFormat("zh-CN", {
     <Content />
   </div>
   {moment.data.link && (
-      <a
-        href={moment.data.link.url}
-        class="moment-link"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {moment.data.link.thumbnail && (
-          <div class="moment-link-thumb">
-            <Image
-              src={moment.data.link.thumbnail}
-              alt=""
-              width={160}
-              height={128}
-            />
-          </div>
-        )}
-        <div class="moment-link-body">
-          <span class="moment-link-title"
-            >{moment.data.link.title || moment.data.link.url}</span
-          >
-          <span class="moment-link-url">{moment.data.link.url}</span>
+    <a
+      href={moment.data.link.url}
+      class="moment-link"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {moment.data.link.thumbnail && (
+        <div class="moment-link-thumb">
+          <Image
+            src={moment.data.link.thumbnail}
+            alt=""
+            width={160}
+            height={128}
+          />
         </div>
-      </a>
-    )}
-  {moment.data.tags && moment.data.tags.length > 0 && (
-      <div class="moment-tags">
-        {moment.data.tags.map((tag) => (
-          <a href={`/tags/${tag}`}>#{tag}</a>
-        ))}
+      )}
+      <div class="moment-link-body">
+        <span class="moment-link-title"
+          >{moment.data.link.title || moment.data.link.url}</span
+        >
+        <span class="moment-link-url">{moment.data.link.url}</span>
       </div>
-    )}
+    </a>
+  )}
+  {moment.data.tags && moment.data.tags.length > 0 && (
+    <div class="moment-tags">
+      {moment.data.tags.map((tag) => (
+        <a href={`/tags/${tag}`}>#{tag}</a>
+      ))}
+    </div>
+  )}
 </article>
 
 <style>
   .moment-card {
-    /* card wrapper — no positioning needed */
+    position: relative;
+    background: color-mix(in oklab, var(--muted) 55%, transparent);
+    border-radius: var(--radius-xl);
+    padding: var(--space-xs);
+    transition: background 0.15s;
   }
 
-  .moment-time-link {
-    display: block;
-    text-decoration: none;
-    color: inherit;
-    margin-bottom: var(--space-3xs);
+  .moment-card:has(.moment-card-link:hover) {
+    background: color-mix(in oklab, var(--muted) 75%, transparent);
+  }
+
+  .moment-card-link {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    z-index: 1;
+  }
+
+  .moment-card-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* 关键：只有「交互元素」叠在覆盖层之上（正文内链/外链卡/标签可独立点击）；
+     正文文本、时间、图片保持在覆盖层之下 → 点击穿透到覆盖层，实现整卡可点。
+     注意：.moment-body 本身不设 z-index，否则会挡住覆盖层。 */
+  .moment-body :global(a),
+  .moment-card > .moment-link,
+  .moment-card > .moment-tags a {
+    position: relative;
+    z-index: 2;
   }
 
   time {
     display: block;
     font-size: var(--step--1);
     color: var(--muted-foreground);
+    margin-bottom: var(--space-3xs);
+    transition: color 0.15s;
+  }
+
+  .moment-card:has(.moment-card-link:hover) time {
+    color: var(--accent);
   }
 
   .moment-body {
@@ -232,11 +266,22 @@ const dateStr = new Intl.DateTimeFormat("zh-CN", {
       font-size: var(--step--1);
       color: var(--muted-foreground);
       text-decoration: none;
-      transition: color 0.15s;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 2px 8px;
+      transition:
+        border-color 0.15s,
+        color 0.15s;
     }
 
     a:hover {
       color: var(--accent);
+      border-color: var(--accent);
     }
+  }
+
+  .moment-card:has(.moment-card-link:hover) .moment-tags a {
+    color: var(--accent);
+    border-color: var(--accent);
   }
 </style>

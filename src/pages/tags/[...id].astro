@@ -50,12 +50,7 @@ const allItems = [
       item.type === "blog" ? (
         <BlogCard post={item.entry as CollectionEntry<"blog">} />
       ) : (
-        <a
-          href={`/moments/${(item.entry as CollectionEntry<"moments">).id}`}
-          class="moment-link"
-        >
-          <MomentCard moment={item.entry as CollectionEntry<"moments">} />
-        </a>
+        <MomentCard moment={item.entry as CollectionEntry<"moments">} />
       ),
     )}
   </div>
@@ -72,10 +67,5 @@ const allItems = [
   .empty {
     color: var(--muted-foreground);
     font-size: var(--step--1);
-  }
-
-  .moment-link {
-    text-decoration: none;
-    color: inherit;
   }
 </style>

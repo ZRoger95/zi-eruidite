@@ -62,12 +62,7 @@ const moments = SITE.momentsOnHome
       </h2>
       <div class="moments-list">
         {moments.map((moment) => (
-          <a
-            href={`/moments/${moment.id}`}
-            class="moment-home-link"
-          >
-            <MomentCard moment={moment} />
-          </a>
+          <MomentCard moment={moment} />
         ))}
       </div>
     </latest-section>
@@ -91,11 +86,6 @@ const moments = SITE.momentsOnHome
   .moments-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-m);
-  }
-
-  .moment-home-link {
-    text-decoration: none;
-    color: inherit;
+    gap: var(--space-2xs);
   }
 </style>
