@@ -92,8 +92,10 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 `src/content/blog/my-series/index.md` 组织系列文章。博客 frontmatter 必须包含
 `title`、`description`、`date` 和 `authors`；`authors` 必须引用
 `src/content/authors/` 中的作者文件（使用 `reference("authors")` 校验）。
-未发布内容可使用 `_` 前缀文件名，或设置 `draft: true`。项目条目放在
-`src/content/projects/`，必须包含 `name`、`description` 和 `link`。
+未发布内容可使用 `_` 前缀文件名，或设置 `draft: true`。作者条目同样支持
+`draft: true`：仅从 `/authors` 目录隐藏，个人页仍会生成（文章引用与链接不受
+影响）。项目条目放在 `src/content/projects/`，必须包含 `name`、`description`
+和 `link`。
 
 ### 系列文章（Subposts）
 

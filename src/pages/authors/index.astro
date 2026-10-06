@@ -2,11 +2,9 @@
 import AuthorCard from "@/components/AuthorCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
-import { getCollection } from "astro:content"
+import { getAuthors } from "@/lib/content"
 
-const authors = (await getCollection("authors")).sort((a, b) =>
-  a.data.name.localeCompare(b.data.name),
-)
+const authors = await getAuthors()
 ---
 
 <Layout>

@@ -258,6 +258,7 @@ The author schema is defined as follows:
 | `bio`      | `string`                                   | n/a                                                                                                                                                                      | Optional |
 | `mail`     | `email()`                                  | Must be a valid email address.                                                                                                                                           | Optional |
 | `socials`  | `record(string, url())`                    | A map of any label you like to a valid URL. Each label is matched to an icon in `src/components/SocialIcons.astro`.                                                      | Optional |
+| `draft`    | `boolean`                                  | Defaults to `false` if not provided. When `true`, the author is hidden from the `/authors` directory listing; their profile page is still generated so post links keep working. | Optional |
 
 ### Projects
 

@@ -4,6 +4,11 @@ import { isSubpost } from "@/lib/utils"
 
 export const pageTitle = (title: string) => `${title} | ${SITE.title}`
 
+export async function getAuthors(): Promise<CollectionEntry<"authors">[]> {
+  const authors = await getCollection("authors", ({ data }) => !data.draft)
+  return authors.sort((a, b) => a.data.name.localeCompare(b.data.name))
+}
+
 export async function getPosts(): Promise<CollectionEntry<"blog">[]> {
   const posts = await getCollection("blog", ({ data }) => !data.draft)
   return posts

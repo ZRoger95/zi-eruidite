@@ -14,6 +14,7 @@ const authors = defineCollection({
     bio: z.string().optional(),
     mail: z.email().optional(),
     socials: z.record(z.string(), z.url()).optional(),
+    draft: z.boolean().optional(),
   }),
 })
 
