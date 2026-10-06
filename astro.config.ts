@@ -13,7 +13,7 @@ import { headingAnchors } from "./src/lib/heading-anchors"
 import { momentComposerPlugin } from "./src/lib/moment-composer-plugin"
 
 export default defineConfig({
-  site: "https://astro-erudite.vercel.app",
+  site: "https://zingrigger.github.io",
   compressHTML: true,
   prefetch: { prefetchAll: true },
   vite: {
