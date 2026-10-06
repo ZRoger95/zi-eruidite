@@ -23,9 +23,13 @@ import Topbar from "@/components/Topbar.astro"
 import { SITE } from "@/consts"
 import type { BackgroundStyle } from "@/consts"
 
-type Props = { crumbs?: { label: string; href: string }[] }
+type Props = {
+  crumbs?: { label: string; href: string }[]
+  /** Blog article pages use a wider content column (article header display). */
+  article?: boolean
+}
 
-const { crumbs } = Astro.props
+const { crumbs, article } = Astro.props
 const isTopbar = SITE.layout === "topbar"
 
 // Compute background CSS custom properties
@@ -57,7 +61,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     {isTopbar ? (
       <>
         <Topbar><slot name="actions" slot="actions" /></Topbar>
-        <page-content-topbar>
+        <page-content-topbar data-article={article || undefined}>
           <topbar-article>
             {Astro.slots.has("toc") && (
               <page-toc><slot name="toc" /></page-toc>
@@ -178,6 +182,15 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     padding-inline: var(--grid-gutter);
     padding-block-start: var(--space-xl);
 
+    /* Blog article pages get a wider column for the article header display */
+    &[data-article] {
+      max-width: 80rem;
+
+      @media (width < 64rem) {
+        max-width: 50rem;
+      }
+    }
+
     main {
       flex: 1;
       min-width: 0;
@@ -186,12 +199,6 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     page-footer {
       display: block;
       margin-block-start: var(--space-xl);
-    }
-
-    &:has(page-toc) {
-      @media (width < 64rem) {
-        max-width: 50rem;
-      }
     }
   }
 
@@ -228,7 +235,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
   }
 
   html[data-fullwidth] {
-    page-content-topbar:has(page-toc) {
+    page-content-topbar[data-article] {
       max-width: 100%;
     }
   }
