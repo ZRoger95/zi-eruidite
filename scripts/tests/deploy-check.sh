@@ -20,7 +20,7 @@ cleanup_restore() {
   if [ -f /tmp/deploy.config.json.keep ]; then
     mv -f /tmp/deploy.config.json.keep deploy.config.json
   fi
-  rm -f /tmp/deploy-injection-proof .deploy_git/.git/hooks/pre-push
+  rm -f /tmp/deploy-injection-proof .deploy_git/.git/hooks/post-commit
 }
 trap cleanup_restore EXIT
 
@@ -121,7 +121,7 @@ mv -f /tmp/deploy.config.json.keep deploy.config.json
 grep -q "JSON" /tmp/err.log || fail "非法 JSON 提示缺失"
 pass "非法 JSON 错误路径正确"
 
-# ---------- 竞态：push 前远端被外部推进，--force 仍须成功 ----------
+# ---------- 竞态：外部推进落在 fetch 之后、push 之前 → 非 fast-forward 的强制推送仍须成功 ----------
 rm -rf "$RACE" "$OTHER2"
 git init -q --bare "$RACE"
 git clone -q "$RACE" "$OTHER2"
@@ -131,18 +131,18 @@ git clone -q "$RACE" "$OTHER2"
   printf 'race-seed\n' > race-seed.txt
   git add race-seed.txt && git commit -qm "race seed" && git push -q -u origin main
   printf 'race\n' > race.txt
-  git add race.txt && git commit -qm "race head" # 不推送：留给 pre-push 钩子推送
+  git add race.txt && git commit -qm "race head" # 不推送：由 post-commit 钩子（deploy fetch 之后、push 之前）推送
 )
 # 自包含准备：前序用例已删除 .deploy_git，这里从 $RACE 重新克隆（main=race-seed）
 rm -rf .deploy_git
 git clone -q --branch main "$RACE" .deploy_git
-cat > .deploy_git/.git/hooks/pre-push <<HOOK
+cat > .deploy_git/.git/hooks/post-commit <<HOOK
 #!/usr/bin/env bash
 git -C "$OTHER2" push -q origin main || true
 HOOK
-chmod +x .deploy_git/.git/hooks/pre-push
+chmod +x .deploy_git/.git/hooks/post-commit
 DEPLOY_REPO="$RACE" bash scripts/deploy.sh >/dev/null
-rm -f .deploy_git/.git/hooks/pre-push
+rm -f .deploy_git/.git/hooks/post-commit
 git --git-dir="$RACE" ls-tree -r --name-only main | sort > /tmp/repo-files.txt
 diff -u /tmp/dist-files.txt /tmp/repo-files.txt || fail "竞态覆盖后与 dist 不一致"
 git --git-dir="$RACE" ls-tree -r --name-only main | grep -q race.txt \
@@ -195,7 +195,7 @@ grep -q "rm -rf .deploy_git" /tmp/err.log || fail "错误信息未给出重置�
 pass ".deploy_git 损坏错误路径正确"
 
 # ---------- 清理 ----------
-rm -rf "$TMP" "$OTHER" "$NEW" .deploy_git /tmp/dist-files.txt /tmp/repo-files.txt \
+rm -rf "$TMP" "$OTHER" "$NEW" "$RACE" "$OTHER2" .deploy_git /tmp/dist-files.txt /tmp/repo-files.txt \
   /tmp/err.log /tmp/deploy.config.json.bak /tmp/dist-backup
 pass "临时产物已清理"
 echo "ALL DEPLOY CHECKS PASSED"
