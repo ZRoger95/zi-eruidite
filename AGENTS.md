@@ -61,6 +61,12 @@ npm 工作流（当用户偏好 npm 时优先使用）：
 仓库同时跟踪 `bun.lock` 与 `package-lock.json`，两种包管理器的依赖版本均已锁定，
 可放心按用户偏好选用 Bun 或 npm。
 
+站点公开地址通过 `.env` 的 `SITE_URL` 配置（模板见 `.env.example`），`astro.config.ts`
+读取它作为 `site`（sitemap / RSS / canonical 的基准 URL）。首次使用先
+`cp .env.example .env` 并填写自己的域名；`.env` 已被 gitignore，也可用同名环境变量
+临时覆盖（如 `SITE_URL=https://example.com npm run build`）。缺少该变量时构建会报错并
+提示配置方法。
+
 ## 代码风格与命名约定
 
 Biome 是格式化来源。配置使用 2 空格缩进、80 字符行宽、JavaScript/TypeScript 双引号，
@@ -131,7 +137,7 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
   3. 按需启用 Enforce HTTPS。
 - **后续绑定自定义域名**（如 `xxx.blog`）：
   1. `public/CNAME` 写入域名并部署；
-  2. `astro.config.ts` 的 `site` 改为新域名并部署；
+  2. 在 `.env` 中把 `SITE_URL` 改为新域名并部署（见 `.env.example`）；
   3. Cloudflare 添加 `xxx.blog → zingrigger.github.io` 的 CNAME 记录（证书签发期间
      建议「仅 DNS」），并在 repo-b Settings 填写 Custom domain、启用 HTTPS。
   之所以 CNAME 必须放在源码里：部署是全量覆盖，GitHub 设置生成的 `CNAME` 文件会被

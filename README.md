@@ -84,13 +84,19 @@ Below are some fantastic examples of websites based on this template. If you wis
    bun install
    ```
 
-4. Start the development server:
+4. Configure your site URL — copy `.env.example` to `.env` and set `SITE_URL` to your deployed origin (used for the sitemap, RSS feed, and canonical URLs):
+
+   ```bash
+   cp .env.example .env
+   ```
+
+5. Start the development server:
 
    ```bash
    bun dev
    ```
 
-5. Open your browser and visit `http://localhost:4321` to get started. The following commands are also available:
+6. Open your browser and visit `http://localhost:4321` to get started. The following commands are also available:
 
    | Command                | Description                                       |
    | ---------------------- | ------------------------------------------------- |
@@ -125,7 +131,7 @@ export const SOCIALS: { href: string; label: string; icon: SvgComponent }[] = [
 ]
 ```
 
-Your site's production URL is configurable in `astro.config.ts` as the `site` field, which is used for the sitemap, RSS feed, and canonical URLs.
+Your site's production URL is read from the `SITE_URL` environment variable in `.env` (see `.env.example`) and passed to the `site` field in `astro.config.ts`, which is used for the sitemap, RSS feed, and canonical URLs.
 
 ### Color palette
 
