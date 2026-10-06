@@ -13,21 +13,34 @@ OTHER2=/tmp/deploy-other2
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
 
+# 哨兵防护：测试用 .env 的 DEPLOY_REPO 一律指向不存在的本地路径；
+# 即使「环境变量 > .env」优先级回归，也只会克隆失败，绝不触碰真实仓库。
+GUARD_REPO=/nonexistent/deploy-guard.git
+ENV_KEEP=/tmp/deploy.env.keep
+ENV_GONE=/tmp/deploy.env.gone
+if [ -f .env ]; then cp .env "$ENV_KEEP"; else rm -f "$ENV_KEEP"; fi
+
+write_env() { # $1=repo $2=branch：写入测试用 .env（SITE_URL 固定为示例值）
+  printf 'SITE_URL=https://example.com\nDEPLOY_REPO=%s\nDEPLOY_BRANCH=%s\n' "$1" "$2" > .env
+}
+guard_env() { write_env "$GUARD_REPO" main; }
+
 cleanup_restore() {
-  if [ -f /tmp/deploy.config.json.bak ]; then
-    mv -f /tmp/deploy.config.json.bak deploy.config.json
+  if [ -f "$ENV_KEEP" ]; then
+    mv -f "$ENV_KEEP" .env
+  else
+    rm -f .env
   fi
-  if [ -f /tmp/deploy.config.json.keep ]; then
-    mv -f /tmp/deploy.config.json.keep deploy.config.json
-  fi
-  rm -f /tmp/deploy-injection-proof /tmp/deploy-race-hook-proof .deploy_git/.git/hooks/post-commit
+  rm -f "$ENV_GONE" /tmp/deploy-injection-proof /tmp/deploy-race-hook-proof .deploy_git/.git/hooks/post-commit
 }
 trap cleanup_restore EXIT
 
 # ---------- 准备 ----------
 rm -rf "$TMP" "$OTHER" "$NEW" "$RACE" "$OTHER2" .deploy_git /tmp/dist-files.txt /tmp/repo-files.txt /tmp/err.log
+rm -f "$ENV_GONE"
 git init -q --bare "$TMP"
-pass "临时 bare 仓库已创建"
+guard_env
+pass "临时 bare 仓库与测试用 .env 已就位（哨兵防护）"
 
 # ---------- 空仓库首次部署（npm 入口接线） ----------
 DEPLOY_REPO="$TMP" npm run deploy
@@ -69,25 +82,26 @@ git --git-dir="$TMP" ls-tree -r --name-only main | grep -q stray-file.txt \
 [ "$(git --git-dir="$TMP" rev-list --count main)" = "3" ] || fail "覆盖后提交计数不为 3"
 pass "远端改动被全量覆盖（stray 已清除，树与 dist 一致）"
 
-# ---------- 换仓库：切换到新的空 bare 仓库，须从干净起点开始 ----------
+# ---------- 仅凭 .env 配置部署（无环境变量覆盖；顺带覆盖「换仓库」） ----------
 git init -q --bare "$NEW"
-DEPLOY_REPO="$NEW" bash scripts/deploy.sh >/dev/null
+write_env "$NEW" main
+bash scripts/deploy.sh >/dev/null
 [ "$(git --git-dir="$NEW" rev-list --count main)" = "1" ] \
-  || fail "换仓库后历史未从干净起点开始（应为 1 个根提交）"
+  || fail ".env 配置未生效或历史未从干净起点开始（应为 1 个根提交）"
 git --git-dir="$NEW" ls-tree -r --name-only main | sort > /tmp/repo-files.txt
-diff -u /tmp/dist-files.txt /tmp/repo-files.txt || fail "换仓库后内容不一致"
-pass "换仓库后从干净起点部署（单根提交、树与 dist 一致）"
+diff -u /tmp/dist-files.txt /tmp/repo-files.txt || fail ".env 配置部署内容与 dist 不一致"
+pass "仅凭 .env 部署成功（无覆盖，换仓库后单根提交、树与 dist 一致）"
+guard_env
 
 # ---------- 安全：配置值不得被当作命令执行 ----------
-cp deploy.config.json /tmp/deploy.config.json.keep
-printf '{ "repo": "$(touch /tmp/deploy-injection-proof)", "branch": "main" }\n' > deploy.config.json
-DEPLOY_REPO="$TMP" bash scripts/deploy.sh >/tmp/err.log 2>&1 || true
-mv -f /tmp/deploy.config.json.keep deploy.config.json
+write_env '$(touch /tmp/deploy-injection-proof)' main
+bash scripts/deploy.sh >/tmp/err.log 2>&1 || true
+guard_env
 if [ -e /tmp/deploy-injection-proof ]; then
   rm -f /tmp/deploy-injection-proof
-  fail "配置值被当作命令执行（eval 注入）"
+  fail "配置值被当作命令执行（注入）"
 fi
-pass "配置值不会被求值为命令（无 eval 注入）"
+pass "配置值不会被求值为命令（无注入）"
 
 # ---------- 错误路径：.deploy_git 为普通文件 ----------
 rm -rf .deploy_git
@@ -110,17 +124,6 @@ if DEPLOY_REPO="/nonexistent/deploy-repo.git" bash scripts/deploy.sh >/tmp/err.l
 fi
 grep -q "克隆失败" /tmp/err.log || fail "clone 失败提示缺失"
 pass "clone 失败错误路径正确"
-
-# ---------- 错误路径：配置不是有效 JSON ----------
-cp deploy.config.json /tmp/deploy.config.json.keep
-printf '{ not json' > deploy.config.json
-if DEPLOY_REPO="$TMP" bash scripts/deploy.sh >/tmp/err.log 2>&1; then
-  mv -f /tmp/deploy.config.json.keep deploy.config.json
-  fail "非法 JSON 应报错"
-fi
-mv -f /tmp/deploy.config.json.keep deploy.config.json
-grep -q "JSON" /tmp/err.log || fail "非法 JSON 提示缺失"
-pass "非法 JSON 错误路径正确"
 
 # ---------- 竞态：外部推进落在 fetch 之后、push 之前 → 非 fast-forward 的强制推送仍须成功 ----------
 rm -rf "$RACE" "$OTHER2"
@@ -152,27 +155,27 @@ git --git-dir="$RACE" ls-tree -r --name-only main | grep -q race.txt \
   && fail "竞态提交未被 --force 覆盖" || true
 pass "竞态下 --force 仍成功且远端等于 dist"
 
-# ---------- 错误路径：配置缺失 ----------
-rm -f /tmp/deploy.config.json.bak
-mv deploy.config.json /tmp/deploy.config.json.bak
+# ---------- 错误路径：.env 缺失（环境变量不能替代 .env） ----------
+mv .env "$ENV_GONE"
 if DEPLOY_REPO="$TMP" bash scripts/deploy.sh >/tmp/err.log 2>&1; then
-  mv -f /tmp/deploy.config.json.bak deploy.config.json
-  fail "配置缺失时应报错"
+  mv -f "$ENV_GONE" .env
+  fail ".env 缺失时应报错"
 fi
-cp /tmp/deploy.config.json.bak deploy.config.json
-grep -q "deploy.config.json" /tmp/err.log || fail "错误信息未提及配置文件"
-pass "配置缺失错误路径正确"
+mv -f "$ENV_GONE" .env
+grep -qF ".env" /tmp/err.log || fail "错误信息未提及 .env"
+grep -qF "env.example" /tmp/err.log || fail "错误信息未给出 cp .env.example .env 指引"
+pass ".env 缺失错误路径正确"
 
-# ---------- 错误路径：字段为空 ----------
-printf '{ "repo": "", "branch": "main" }\n' > deploy.config.json
+# ---------- 错误路径：.env 字段为空（环境变量覆盖不能挽救空值） ----------
+write_env "" main
 if DEPLOY_REPO="$TMP" bash scripts/deploy.sh >/tmp/err.log 2>&1; then
-  mv -f /tmp/deploy.config.json.bak deploy.config.json
+  guard_env
   fail "字段为空时应报错"
 fi
-mv -f /tmp/deploy.config.json.bak deploy.config.json
+guard_env
 grep -q "非空" /tmp/err.log || fail "错误信息未说明字段要求"
 grep -q "示例" /tmp/err.log || fail "字段错误信息未附配置示例"
-pass "字段为空错误路径正确（含示例）"
+pass ".env 字段为空错误路径正确（含示例）"
 
 # ---------- 错误路径：dist 缺失 ----------
 rm -rf /tmp/dist-backup
@@ -199,6 +202,6 @@ pass ".deploy_git 损坏错误路径正确"
 
 # ---------- 清理 ----------
 rm -rf "$TMP" "$OTHER" "$NEW" "$RACE" "$OTHER2" .deploy_git /tmp/dist-files.txt /tmp/repo-files.txt \
-  /tmp/err.log /tmp/deploy.config.json.bak /tmp/dist-backup
+  /tmp/err.log /tmp/dist-backup
 pass "临时产物已清理"
 echo "ALL DEPLOY CHECKS PASSED"

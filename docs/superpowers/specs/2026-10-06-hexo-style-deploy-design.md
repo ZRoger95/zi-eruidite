@@ -23,7 +23,8 @@ dist/（astro build 产物） → .deploy_git/（repo-b 的缓存克隆） → g
 **覆盖：**
 
 - 新增 `scripts/deploy.sh`：部署脚本。
-- 新增 `deploy.config.json`：配置入口（仿 hexo `_config.yml` 的 deploy 段）。
+- 新增 `deploy.config.json`：配置入口（仿 hexo `_config.yml` 的 deploy 段；2026-10-06
+  配置已迁移至 `.env`，见「命令与配置」更新注记）。
 - 新增 `public/.nojekyll`：空文件，防 Jekyll 忽略 `_astro/`。
 - 修改 `package.json`（`deploy` 脚本）、`.gitignore`（`.deploy_git/`）、
   `astro.config.ts`（`site`）、`AGENTS.md`（命令与部署说明）。
@@ -54,6 +55,9 @@ dist/（astro build 产物） → .deploy_git/（repo-b 的缓存克隆） → g
   - 配置文件缺失、字段缺失或为空 → 报错并打印内容示例，不静默兜底；环境变量只做覆盖，
     不能替代配置文件。
   - 用 JSON 而非 YAML：避免引入 YAML 解析依赖（Node 原生解析）。
+  - （2026-10-06 更新：配置入口已迁移到 `.env` 的 `DEPLOY_REPO` / `DEPLOY_BRANCH`
+    （模板 `.env.example`），`deploy.config.json` 已删除，部署目标不再随仓库提交；
+    读取优先级与严格校验规则不变。）
 - 提交信息默认 `Site updated: <yyyy-MM-dd HH:mm:ss>`（hexo 同款）；提交身份用本机全局
   git 配置。
 - 推送使用 `--force`（hexo 默认行为）。约定：repo-b 是纯产物仓库，不直接在网页端修改。
@@ -61,7 +65,7 @@ dist/（astro build 产物） → .deploy_git/（repo-b 的缓存克隆） → g
 ### 脚本流程（`scripts/deploy.sh`）
 
 1. 脚本经自身路径定位项目根目录（不依赖调用时的 cwd）。
-2. 读取配置：用 Node 解析 `deploy.config.json`，环境变量可覆盖。
+2. 读取配置：用 Node 解析 `.env` 中的 `DEPLOY_REPO` / `DEPLOY_BRANCH`，环境变量可覆盖。
 3. 校验 `dist/index.html` 存在，否则报错并提示先 build。
 4. 准备 `.deploy_git/`：
    - 不存在 → `git clone <repo> .deploy_git`；空仓库也能克隆；克隆失败（仓库不存在、
