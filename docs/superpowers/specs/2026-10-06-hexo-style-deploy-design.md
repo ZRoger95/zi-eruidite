@@ -67,7 +67,7 @@ dist/（astro build 产物） → .deploy_git/（repo-b 的缓存克隆） → g
    - 不存在 → `git clone <repo> .deploy_git`；空仓库也能克隆；克隆失败（仓库不存在、
      无权限）→ 报错并给出一次性设置指引（见下）。
    - 存在但没有 `.git` → 报错并提示 `rm -rf .deploy_git` 后重跑。
-   - 对齐远端：`git fetch origin`；远端已有目标分支 → 本地分支强制对齐远端；
+   - 对齐远端：`git fetch --prune origin`；远端已有目标分支 → 本地分支强制对齐远端；
      远端还没有该分支（空仓库/首次推送）→ 从干净起点创建同名分支。
 5. 同步：清空 `.deploy_git/` 中除 `.git` 外的全部内容；将 `dist/` 内容整体拷入
    （`cp -R dist/. .deploy_git/`，包含隐藏文件如 `.nojekyll`）。

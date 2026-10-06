@@ -24,6 +24,7 @@ config="$(node -e '
   if (typeof c.repo !== "string" || !c.repo ||
       typeof c.branch !== "string" || !c.branch) {
     console.error("错误：deploy.config.json 需要非空的 repo 与 branch 字段");
+    console.error("示例：{ \"repo\": \"git@github.com:<user>/<user>.github.io.git\", \"branch\": \"main\" }");
     process.exit(1);
   }
   console.log("REPO=" + JSON.stringify(c.repo));
@@ -56,11 +57,12 @@ fi
 
 git -C .deploy_git remote set-url origin "$REPO"
 echo "==> 对齐远端（${BRANCH}）"
-git -C .deploy_git fetch origin
+git -C .deploy_git fetch --prune origin
 if git -C .deploy_git rev-parse --verify --quiet "refs/remotes/origin/$BRANCH" >/dev/null; then
   git -C .deploy_git checkout --force -B "$BRANCH" "origin/$BRANCH"
 else
-  # 空仓库/新分支：把 HEAD 指向尚未出生的目标分支
+  # 空仓库/新分支：清除同名旧分支引用，把 HEAD 指向干净的未出生分支
+  git -C .deploy_git update-ref -d "refs/heads/$BRANCH" 2>/dev/null || true
   git -C .deploy_git symbolic-ref HEAD "refs/heads/$BRANCH"
 fi
 
