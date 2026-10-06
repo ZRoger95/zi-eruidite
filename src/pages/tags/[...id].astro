@@ -34,18 +34,18 @@ const allItems = [
 
 <Layout
   crumbs={[
-    { label: "Tags", href: "/tags" },
+    { label: "标签", href: "/tags" },
     { label: `#${tag}`, href: `/tags/${tag}` },
   ]}
 >
   <MetaPage
     slot="head"
     title={`#${tag}`}
-    description={`Content tagged with ${tag}.`}
+    description={`标注为 #${tag} 的内容。`}
     noindex
   />
   <div class="tag-page">
-    {allItems.length === 0 && <p class="empty">No content tagged with #{tag}.</p>}
+    {allItems.length === 0 && <p class="empty">暂无标注 #{tag} 的内容。</p>}
     {allItems.map((item) =>
       item.type === "blog" ? (
         <BlogCard post={item.entry as CollectionEntry<"blog">} />

@@ -2,6 +2,8 @@ import { glob } from "astro/loaders"
 import { defineCollection, reference } from "astro:content"
 import { z } from "astro/zod"
 
+import { generateBlogEntryId } from "./lib/i18n"
+
 const authors = defineCollection({
   loader: glob({
     pattern: "**/[^_]*.md",
@@ -22,6 +24,7 @@ const blog = defineCollection({
   loader: glob({
     pattern: "**/[^_]*.md",
     base: "./src/content/blog",
+    generateId: generateBlogEntryId,
   }),
   schema: ({ image }) =>
     z.object({
@@ -33,6 +36,7 @@ const blog = defineCollection({
       authors: z.array(reference("authors")),
       image: image().optional(),
       draft: z.boolean().optional(),
+      aiTranslated: z.boolean().optional(),
     }),
 })
 

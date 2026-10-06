@@ -6,8 +6,8 @@ import { getAllTags } from "@/lib/content"
 const tags = await getAllTags()
 ---
 
-<Layout crumbs={[{ label: "Tags", href: "/tags" }]}>
-  <MetaPage slot="head" title="Tags" noindex />
+<Layout crumbs={[{ label: "标签", href: "/tags" }]}>
+  <MetaPage slot="head" title="标签" noindex />
   <ul>
     {[...tags].map(([tag, { blog, moments }]) => {
         const total = blog.length + moments.length

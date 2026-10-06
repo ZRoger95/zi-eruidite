@@ -32,6 +32,10 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
+      i18n: {
+        defaultLocale: "zh",
+        locales: { zh: "zh-CN", en: "en" },
+      },
       filter: (page) =>
         !/\/blog\/[^/]+\/[^/]+\/?$/.test(page) &&
         !/\/authors\/[^/]+\/?$/.test(page) &&

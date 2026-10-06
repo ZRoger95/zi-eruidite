@@ -25,7 +25,7 @@ const posts = (await getPosts()).filter((post) =>
 ---
 
 <Layout crumbs={[{ label: name, href: `/authors/${author.id}` }]}>
-  <MetaPage slot="head" title={`${name} (Author)`} description={bio} noindex />
+  <MetaPage slot="head" title={`${name}（作者）`} description={bio} noindex />
   <header>
     <ul>
       <AuthorCard author={author} />
@@ -33,7 +33,7 @@ const posts = (await getPosts()).filter((post) =>
   </header>
 
   <section>
-    <h2>Posts</h2>
+    <h2>文章</h2>
     {posts.length > 0 ? (
         <ul>
           {posts.map((post) => (
@@ -41,7 +41,7 @@ const posts = (await getPosts()).filter((post) =>
           ))}
         </ul>
       ) : (
-        <p>No posts yet.</p>
+        <p>暂无文章。</p>
       )}
   </section>
 </Layout>

@@ -44,6 +44,8 @@ Bun 工作流（仓库默认，含 `bun.lock`）：
 - `bun run preview`：本地预览已构建的网站。
 - `bun run format`：使用 Biome 格式化支持的文件。
 - `bun run format:check`：只检查格式，不写入更改。
+- `bun run translate -- <路径>`：翻译单篇/系列并写入 `.en.md`，见
+  「i18n」小节；需 `.env` 的 `TRANSLATE_*`。
 - `bun run deploy`：hexo 式部署——构建并把 `dist/` 强推到 `.env` 中
   `DEPLOY_REPO` / `DEPLOY_BRANCH` 指定的 Pages 仓库。
 
@@ -55,6 +57,8 @@ npm 工作流（当用户偏好 npm 时优先使用）：
 - `npm run preview`：本地预览已构建的网站。
 - `npm run format`：使用 Biome 格式化支持的文件。
 - `npm run format:check`：只检查格式，不写入更改。
+- `npm run translate -- <路径>`：翻译单篇/系列并写入 `.en.md`，见
+  「i18n」小节；需 `.env` 的 `TRANSLATE_*`。
 - `npm run deploy`：hexo 式部署——构建并把 `dist/` 强推到 `.env` 中
   `DEPLOY_REPO` / `DEPLOY_BRANCH` 指定的 Pages 仓库。
 
@@ -115,13 +119,59 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
   例如 `` `const x = 1{:ts}` `` 按 TypeScript 高亮，`` `text{:.string}` `` 使用
   主题的字符串颜色。
 
+## i18n（中英双语）约定
+
+站点默认中文（根路径），英文位于 `/en/` 前缀下。英文内容以**同目录孪生文件**
+提供：把中文文件加 `.en.md` 后缀即为英文版（如 `welcome/index.md` ↔
+`welcome/index.en.md`），内容 id 保留该标记，例如 `v1-posts/index.en.md` →
+`v1-posts.en`。blog loader 使用自定义 `generateId` 实现（默认 glob loader 会吞掉
+`.en` 中的点）。图片等资产中英共用，无需复制。机器翻译产物可在 frontmatter 标
+`aiTranslated: true`，文章页会按当前语言显示「AI 翻译」（zh）/「AI-translated」
+（en）徽章（`PostChain` 标签取当前语言）。
+
+`/en/` 下未翻译内容的呈现规则：
+
+- 列表页收录全部已发布文章：未翻译条目显示中文原标题并附「Not translated yet」
+  徽章，已翻译条目显示英文标题。
+- 无译文的文章 URL（`/en/blog/<id>`）渲染提示页：`noindex`、canonical 指回中文
+  原文，并提供回链。
+- 系列中未翻译的子文章在英文系列页渲染占位锚点，其独立 URL 渲染所属系列页；
+  仅当整个系列均无任何已翻译节点时，该系列全部 URL（父与子）才统一渲染提示页。
+
+draft 与 `_` 前缀语义沿用中文侧规则：`draft: true` 的文章不进入列表与路由；`_`
+前缀文件不被内容加载器收集（约定仅用于中文草稿）；英文孪生条目为 draft 时按
+「未翻译」处理。
+
+`src/lib/i18n.ts` 是语言工具的唯一来源：
+
+- `localeOf(id)` / `baseId(id)`：解析内容 id 的语言与基础 id（中英配对键）。
+- `localeFromPath(pathname)`：由站点路径判定语言（`/en` 前缀 → en）。
+- `localePath(path, locale)` / `stripLocalePath(pathname)`：为站点路径加/剥
+  `/en` 前缀（如 `/en/blog` ↔ `/blog`）。
+- `t(locale, key)`：界面文案字典（`UI_STRINGS`），新增界面文字需同时补 `zh` 与
+  `en` 两份。
+
+i18n 回归检查：`bash scripts/tests/i18n-check.sh` —— 临时写入受控 `.env` 后构建，
+再对 `dist/` 输出逐条断言（中文基线、英文路由、未翻译呈现、切换器、SEO/RSS/
+sitemap），修改 i18n 相关代码后必须全绿。
+
+翻译工作流：`npm run translate -- <文件或系列目录> [--to en] [--force] [--dry-run]`
+读取 `.env` 的 `TRANSLATE_*`（模板见 `.env.example`）；保结构翻译并在写盘前做
+结构校验，失败译文与差异清单落 `.translate/`（已 gitignore）。无 draft 门禁，
+`git diff` 即审校；译文自动标 `aiTranslated: true`，手写 `.en.md` 仍然有效。
+
 ## 测试与验证指南
 
-当前没有独立测试脚本。提交前至少运行 `bun run format:check` 和 `bun run build`。
+测试脚本位于 `scripts/tests/`（部署干跑 `deploy-check.sh`、i18n 回归
+`i18n-check.sh`、翻译脚本离线桩 `translate-check.sh`）。提交前至少运行
+`bun run format:check` 和 `bun run build`。
 若只使用 npm 工作流，对应命令为 `npm run format:check` 和 `npm run build`。
 涉及可视样式、排版或路由变化时，请在本地开发服务器中手动检查相关页面。
 
 部署脚本另有干跑校验：`bash scripts/tests/deploy-check.sh` —— 在 `/tmp` 临时 bare 仓库上覆盖全流程与错误路径（不触碰真实 Pages 仓库；测试期间临时使用受控 `.env`，退出时恢复原文件），运行前需已安装依赖。
+
+翻译脚本另有离线桩校验：`bash scripts/tests/translate-check.sh` ——
+覆盖发现/分块/校验/重试等路径，无需真实 API key。
 
 ## 部署（hexo 式）
 

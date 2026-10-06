@@ -1,35 +1,46 @@
 ---
 import Logo from "@/assets/logo.svg"
+import LanguageSwitch from "@/components/LanguageSwitch.astro"
 import ThemeToggle from "@/components/ThemeToggle.astro"
 import { NAVIGATION, SITE } from "@/consts"
+import { localeFromPath, localePath, stripLocalePath, t } from "@/lib/i18n"
 import { normalizePath } from "@/lib/utils"
 
 type Props = { crumbs?: { label: string; href: string }[] }
 
 const { crumbs = [] } = Astro.props
 const pathname = normalizePath(Astro.url.pathname) || "/"
-const section = NAVIGATION.find(
-  ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
+const locale = localeFromPath(pathname)
+const stripped = stripLocalePath(pathname)
+const navItems = NAVIGATION.map((item) => ({
+  key: item.key,
+  href: item.bilingual ? localePath(item.href, locale) : item.href,
+  sectionHref: item.href,
+}))
+const section = navItems.find(
+  ({ sectionHref }) =>
+    stripped === sectionHref || stripped.startsWith(`${sectionHref}/`),
 )
 ---
 
 <aside data-bar>
   <sidebar-inner>
-    <a href="/" aria-label={SITE.title}>
+    <a href={localePath("/", locale)} aria-label={SITE.title}>
       <Logo />
       <span>{SITE.title}</span>
     </a>
     <nav>
       <ul>
-        {NAVIGATION.map((item) => (
+        {navItems.map((item) => (
             <li>
               <a
                 href={item.href}
                 aria-current={pathname === item.href ? "page" : undefined}
+                >{t(locale, item.key)}</a
               >
-                {item.label}
-              </a>
-              {item === section && crumbs.length > 0 && pathname !== item.href && (
+              {item === section &&
+                crumbs.length > 0 &&
+                stripped !== item.sectionHref && (
                 <ul>
                   {crumbs.map((crumb, i) => (
                     <li data-depth={i ? 1 : undefined}>
@@ -63,6 +74,7 @@ const section = NAVIGATION.find(
   </sidebar-inner>
   <sidebar-toggle>
     <ThemeToggle />
+    <LanguageSwitch />
     <slot name="actions" />
   </sidebar-toggle>
 </aside>

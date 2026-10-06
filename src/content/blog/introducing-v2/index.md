@@ -378,7 +378,7 @@ These can be used throughout your site's margin and padding values to create thi
 We can then establish our grid layout and span sections across it:
 
 ```astro title="src/layouts/Layout.astro" collapse={11-15} {30-32,35,40-42}
-<html lang={SITE.locale} dir={SITE.dir}>
+<html lang={SITE_META[locale].htmlLang} dir={SITE.dir}>
   <MetaHead>
     <slot name="head" />
   </MetaHead>

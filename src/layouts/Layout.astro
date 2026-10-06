@@ -22,6 +22,7 @@ import Sidebar from "@/components/Sidebar.astro"
 import Topbar from "@/components/Topbar.astro"
 import { SITE } from "@/consts"
 import type { BackgroundStyle } from "@/consts"
+import { localeFromPath, SITE_META, t } from "@/lib/i18n"
 
 type Props = {
   crumbs?: { label: string; href: string }[]
@@ -31,6 +32,7 @@ type Props = {
 
 const { crumbs, article } = Astro.props
 const isTopbar = SITE.layout === "topbar"
+const locale = localeFromPath(Astro.url.pathname)
 
 // Compute background CSS custom properties
 const bg = SITE.background
@@ -43,7 +45,7 @@ const bgSize = bgStyle === "tile" ? "auto" : bgStyle
 const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
 ---
 
-<html lang={SITE.locale} dir={SITE.dir}>
+<html lang={SITE_META[locale].htmlLang} dir={SITE.dir}>
   <MetaHead>
     <slot name="head" />
   </MetaHead>
@@ -57,7 +59,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
       "--bg-opacity": String(bgOpacity),
     }) : undefined}
   >
-    <a class="skip-link" href="#main-content">跳到主内容</a>
+    <a class="skip-link" href="#main-content">{t(locale, "skipLink")}</a>
     {isTopbar ? (
       <>
         <Topbar><slot name="actions" slot="actions" /></Topbar>
