@@ -118,6 +118,8 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 若只使用 npm 工作流，对应命令为 `npm run format:check` 和 `npm run build`。
 涉及可视样式、排版或路由变化时，请在本地开发服务器中手动检查相关页面。
 
+部署脚本另有干跑校验：`bash scripts/tests/deploy-check.sh` —— 在 `/tmp` 临时 bare 仓库上覆盖全流程与错误路径（不触碰真实 Pages 仓库），运行前需已安装依赖。
+
 ## 部署（hexo 式）
 
 部署复刻 hexo-deployer-git 的方式，不经 GitHub Actions：本机 `npm run deploy`（或
