@@ -7,8 +7,10 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "dev-host": "astro dev --host",
     "build": "astro build",
     "preview": "astro preview",
+    "deploy": "astro build && bash scripts/deploy.sh",
     "astro": "astro",
     "format": "biome format --write .",
     "format:check": "biome format ."
