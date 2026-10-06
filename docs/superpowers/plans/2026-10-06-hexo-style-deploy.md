@@ -132,7 +132,7 @@ elif [ ! -d .deploy_git/.git ]; then
 fi
 
 git -C .deploy_git remote set-url origin "$REPO"
-echo "==> 对齐远端（$BRANCH）"
+echo "==> 对齐远端（${BRANCH}）"
 git -C .deploy_git fetch origin
 if git -C .deploy_git rev-parse --verify --quiet "refs/remotes/origin/$BRANCH" >/dev/null; then
   git -C .deploy_git checkout --force -B "$BRANCH" "origin/$BRANCH"
@@ -158,7 +158,7 @@ echo "==> 推送（force）到 $REPO 的 $BRANCH"
 git -C .deploy_git push --force -u origin "$BRANCH"
 
 repo_name="$(basename "$REPO" .git)"
-echo "==> 部署完成：$REPO（$BRANCH）"
+echo "==> 部署完成：${REPO}（${BRANCH}）"
 if [[ "$repo_name" == *.github.io ]]; then
   echo "    https://$repo_name/ （首次生效约需 1 分钟）"
 fi
