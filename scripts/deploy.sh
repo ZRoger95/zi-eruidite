@@ -49,7 +49,10 @@ if [ ! -f dist/index.html ]; then
 fi
 
 # ---- 三、准备 .deploy_git（缓存克隆）并对齐远端 ----
-if [ ! -d .deploy_git ]; then
+if [ -e .deploy_git ] && [ ! -d .deploy_git ]; then
+  echo "错误：.deploy_git 已存在且不是目录（疑似残留同名文件）。请删除后重跑：rm -rf .deploy_git" >&2
+  exit 1
+elif [ ! -d .deploy_git ]; then
   echo "==> 克隆 $REPO 到 .deploy_git"
   if ! git clone "$REPO" .deploy_git; then
     echo "错误：克隆失败。请确认仓库已创建且有访问权限；一次性设置：" >&2
