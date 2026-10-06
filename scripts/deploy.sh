@@ -5,42 +5,52 @@ set -euo pipefail
 # 定位项目根（不依赖调用时的 cwd）
 cd "$(dirname "$0")/.."
 
-# ---- 一、读取配置（环境变量只做覆盖，不能替代配置文件） ----
-if [ ! -f deploy.config.json ]; then
-  echo "错误：找不到 deploy.config.json。示例：" >&2
-  echo '  { "repo": "git@github.com:<user>/<user>.github.io.git", "branch": "main" }' >&2
+# ---- 一、读取配置（.env 为配置入口；环境变量只做覆盖，不能替代 .env） ----
+if [ ! -f .env ]; then
+  echo "错误：找不到 .env。请先复制模板并填写：" >&2
+  echo "  cp .env.example .env" >&2
+  echo "示例（.env）：" >&2
+  echo "  DEPLOY_REPO=git@github.com:<user>/<user>.github.io.git" >&2
+  echo "  DEPLOY_BRANCH=main" >&2
   exit 1
 fi
 
 config="$(node -e '
-  const fs = require("fs");
-  let c;
+  // 读取优先级：真实环境变量 > .env（暂存环境变量，先校验 .env 自身值，再应用覆盖）
+  const envRepo = process.env.DEPLOY_REPO;
+  const envBranch = process.env.DEPLOY_BRANCH;
+  delete process.env.DEPLOY_REPO;
+  delete process.env.DEPLOY_BRANCH;
   try {
-    c = JSON.parse(fs.readFileSync("deploy.config.json", "utf8"));
+    process.loadEnvFile(".env");
   } catch (e) {
-    console.error("错误：deploy.config.json 不是有效的 JSON：" + e.message);
+    console.error("错误：.env 解析失败：" + e.message);
     process.exit(1);
   }
-  if (typeof c.repo !== "string" || !c.repo ||
-      typeof c.branch !== "string" || !c.branch) {
-    console.error("错误：deploy.config.json 需要非空的 repo 与 branch 字段");
-    console.error("示例：{ \"repo\": \"git@github.com:<user>/<user>.github.io.git\", \"branch\": \"main\" }");
+  const fileRepo = process.env.DEPLOY_REPO;
+  const fileBranch = process.env.DEPLOY_BRANCH;
+  const example = () => {
+    console.error("示例（.env）：");
+    console.error("  DEPLOY_REPO=git@github.com:<user>/<user>.github.io.git");
+    console.error("  DEPLOY_BRANCH=main");
+  };
+  if (typeof fileRepo !== "string" || !fileRepo ||
+      typeof fileBranch !== "string" || !fileBranch) {
+    console.error("错误：.env 需要非空的 DEPLOY_REPO 与 DEPLOY_BRANCH");
+    example();
     process.exit(1);
   }
-  if (/[\t\n\r]/.test(c.repo) || /[\t\n\r]/.test(c.branch)) {
-    console.error("错误：repo 与 branch 不能包含制表符或换行");
+  if (/[\t\n\r]/.test(fileRepo) || /[\t\n\r]/.test(fileBranch)) {
+    console.error("错误：DEPLOY_REPO 与 DEPLOY_BRANCH 不能包含制表符或换行");
     process.exit(1);
   }
-  console.log(c.repo + "\t" + c.branch);
+  console.log((envRepo ? envRepo : fileRepo) + "\t" + (envBranch ? envBranch : fileBranch));
 ')" || exit 1
 IFS=$'\t' read -r REPO BRANCH <<<"$config"
 if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
-  echo "错误：deploy.config.json 需要非空的 repo 与 branch 字段" >&2
+  echo "错误：.env 需要非空的 DEPLOY_REPO 与 DEPLOY_BRANCH" >&2
   exit 1
 fi
-
-REPO="${DEPLOY_REPO:-$REPO}"
-BRANCH="${DEPLOY_BRANCH:-$BRANCH}"
 
 # ---- 二、检查构建产物 ----
 if [ ! -f dist/index.html ]; then

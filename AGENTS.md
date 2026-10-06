@@ -44,8 +44,8 @@ Bun 工作流（仓库默认，含 `bun.lock`）：
 - `bun run preview`：本地预览已构建的网站。
 - `bun run format`：使用 Biome 格式化支持的文件。
 - `bun run format:check`：只检查格式，不写入更改。
-- `bun run deploy`：hexo 式部署——构建并把 `dist/` 强推到 `deploy.config.json` 指定的
-  Pages 仓库。
+- `bun run deploy`：hexo 式部署——构建并把 `dist/` 强推到 `.env` 中
+  `DEPLOY_REPO` / `DEPLOY_BRANCH` 指定的 Pages 仓库。
 
 npm 工作流（当用户偏好 npm 时优先使用）：
 
@@ -55,16 +55,17 @@ npm 工作流（当用户偏好 npm 时优先使用）：
 - `npm run preview`：本地预览已构建的网站。
 - `npm run format`：使用 Biome 格式化支持的文件。
 - `npm run format:check`：只检查格式，不写入更改。
-- `npm run deploy`：hexo 式部署——构建并把 `dist/` 强推到 `deploy.config.json` 指定的
-  Pages 仓库。
+- `npm run deploy`：hexo 式部署——构建并把 `dist/` 强推到 `.env` 中
+  `DEPLOY_REPO` / `DEPLOY_BRANCH` 指定的 Pages 仓库。
 
 仓库同时跟踪 `bun.lock` 与 `package-lock.json`，两种包管理器的依赖版本均已锁定，
 可放心按用户偏好选用 Bun 或 npm。
 
 站点公开地址通过 `.env` 的 `SITE_URL` 配置（模板见 `.env.example`），`astro.config.ts`
 读取它作为 `site`（sitemap / RSS / canonical 的基准 URL）。首次使用先
-`cp .env.example .env` 并填写自己的域名；`.env` 已被 gitignore，也可用同名环境变量
-临时覆盖（如 `SITE_URL=https://example.com npm run build`）。缺少该变量时构建会报错并
+`cp .env.example .env` 并填写自己的域名；部署目标（`DEPLOY_REPO` / `DEPLOY_BRANCH`）
+也配置在该文件中（见「部署」小节）。`.env` 已被 gitignore，也可用同名环境变量临时
+覆盖（如 `SITE_URL=https://example.com npm run build`）。缺少该变量时构建会报错并
 提示配置方法。
 
 ## 代码风格与命名约定
@@ -118,7 +119,7 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 若只使用 npm 工作流，对应命令为 `npm run format:check` 和 `npm run build`。
 涉及可视样式、排版或路由变化时，请在本地开发服务器中手动检查相关页面。
 
-部署脚本另有干跑校验：`bash scripts/tests/deploy-check.sh` —— 在 `/tmp` 临时 bare 仓库上覆盖全流程与错误路径（不触碰真实 Pages 仓库），运行前需已安装依赖并配置好 `.env`（构建所需的 `SITE_URL`）。
+部署脚本另有干跑校验：`bash scripts/tests/deploy-check.sh` —— 在 `/tmp` 临时 bare 仓库上覆盖全流程与错误路径（不触碰真实 Pages 仓库；测试期间临时使用受控 `.env`，退出时恢复原文件），运行前需已安装依赖。
 
 ## 部署（hexo 式）
 
@@ -129,8 +130,9 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
   每次部署先与远端目标分支对齐，清空（保留 `.git`）后把 `dist/` 全量拷入，提交
   `Site updated: <时间>`，再以 `git push --force` 推送。repo-b 是纯产物仓库，
   不要在网页端直接修改。
-- **配置**：`deploy.config.json`（`repo` / `branch`）。环境变量 `DEPLOY_REPO` /
-  `DEPLOY_BRANCH` 可临时覆盖（演练用），但不能替代配置文件。
+- **配置**：`.env` 中的 `DEPLOY_REPO` / `DEPLOY_BRANCH`（模板见 `.env.example`；
+  `.env` 不入库，部署目标不随仓库提交）。同名环境变量可临时覆盖（演练用），但不能
+  替代 `.env` 中的定义。
 - **重置**：`rm -rf .deploy_git`，下次部署会自动重新克隆。
 - **首次一次性设置**：
   1. 在 GitHub 新建空仓库（如 `zingrigger.github.io`）；
