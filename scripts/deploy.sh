@@ -27,10 +27,17 @@ config="$(node -e '
     console.error("示例：{ \"repo\": \"git@github.com:<user>/<user>.github.io.git\", \"branch\": \"main\" }");
     process.exit(1);
   }
-  console.log("REPO=" + JSON.stringify(c.repo));
-  console.log("BRANCH=" + JSON.stringify(c.branch));
+  if (/[\t\n\r]/.test(c.repo) || /[\t\n\r]/.test(c.branch)) {
+    console.error("错误：repo 与 branch 不能包含制表符或换行");
+    process.exit(1);
+  }
+  console.log(c.repo + "\t" + c.branch);
 ')" || exit 1
-eval "$config"
+IFS=$'\t' read -r REPO BRANCH <<<"$config"
+if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
+  echo "错误：deploy.config.json 需要非空的 repo 与 branch 字段" >&2
+  exit 1
+fi
 
 REPO="${DEPLOY_REPO:-$REPO}"
 BRANCH="${DEPLOY_BRANCH:-$BRANCH}"
