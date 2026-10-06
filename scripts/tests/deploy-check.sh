@@ -20,7 +20,7 @@ cleanup_restore() {
   if [ -f /tmp/deploy.config.json.keep ]; then
     mv -f /tmp/deploy.config.json.keep deploy.config.json
   fi
-  rm -f /tmp/deploy-injection-proof .deploy_git/.git/hooks/post-commit
+  rm -f /tmp/deploy-injection-proof /tmp/deploy-race-hook-proof .deploy_git/.git/hooks/post-commit
 }
 trap cleanup_restore EXIT
 
@@ -37,6 +37,7 @@ git --git-dir="$TMP" log -1 --format=%s main \
 pass "首次部署提交信息格式正确"
 
 (cd dist && find . -type f | sed 's|^\./||' | sort) > /tmp/dist-files.txt
+[ -f dist/.nojekyll ] || fail "dist 缺少 .nojekyll（Astro 未复制 public/ 隐藏文件；Pages 将忽略 _astro/ 导致站点失样式）"
 git --git-dir="$TMP" ls-tree -r --name-only main | sort > /tmp/repo-files.txt
 diff -u /tmp/dist-files.txt /tmp/repo-files.txt || fail "远端文件清单与 dist 不一致"
 pass "远端文件清单与 dist 一致"
@@ -136,12 +137,14 @@ git clone -q "$RACE" "$OTHER2"
 # 自包含准备：前序用例已删除 .deploy_git，这里从 $RACE 重新克隆（main=race-seed）
 rm -rf .deploy_git
 git clone -q --branch main "$RACE" .deploy_git
+rm -f /tmp/deploy-race-hook-proof
 cat > .deploy_git/.git/hooks/post-commit <<HOOK
 #!/usr/bin/env bash
-git -C "$OTHER2" push -q origin main || true
+git -C "$OTHER2" push -q origin main && touch /tmp/deploy-race-hook-proof
 HOOK
 chmod +x .deploy_git/.git/hooks/post-commit
 DEPLOY_REPO="$RACE" bash scripts/deploy.sh >/dev/null
+[ -e /tmp/deploy-race-hook-proof ] || fail "竞态外部推进未发生（post-commit 钩子未触发或推送失败——用例静默退化）"
 rm -f .deploy_git/.git/hooks/post-commit
 git --git-dir="$RACE" ls-tree -r --name-only main | sort > /tmp/repo-files.txt
 diff -u /tmp/dist-files.txt /tmp/repo-files.txt || fail "竞态覆盖后与 dist 不一致"
