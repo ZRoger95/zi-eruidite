@@ -80,7 +80,8 @@ dist/（astro build 产物） → .deploy_git/（repo-b 的缓存克隆） → g
 - `public/.nojekyll`：Pages 从分支发布时会跑 Jekyll 预处理，以下划线开头的 `_astro/`
   会被忽略、导致样式丢失；空文件 `.nojekyll` 可关闭该处理。
 - `astro.config.ts`：`site` 由模板默认值 `https://astro-erudite.vercel.app` 改为
-  `https://zingrigger.github.io`（RSS/sitemap/canonical 正确；以后换域名改这一行）。
+  `https://zingrigger.github.io`（RSS/sitemap/canonical 正确；以后换域名改 `.env`）。
+  （2026-10-06 更新：`site` 现从 `.env` 的 `SITE_URL` 读取，见 `.env.example`。）
 - `.gitignore`：新增 `.deploy_git/`。
 - `package.json`：新增 `"deploy": "astro build && bash scripts/deploy.sh"`。
 - `AGENTS.md`：命令表新增 `deploy`；新增「部署」小节（流程简述、`rm -rf .deploy_git`
@@ -95,7 +96,7 @@ dist/（astro build 产物） → .deploy_git/（repo-b 的缓存克隆） → g
 ### 后续绑定自定义域名（操作路径，不在本次实现）
 
 1. `public/CNAME` 写入域名（如 `xxx.blog`）→ `npm run deploy`。
-2. `astro.config.ts` 的 `site` 改为新域名 → `npm run deploy`。
+2. `.env` 的 `SITE_URL` 改为新域名 → `npm run deploy`。
 3. Cloudflare 添加 `xxx.blog → zingrigger.github.io` 的 CNAME 记录（证书签发期间建议先
    「仅 DNS」）；repo-b Settings 填写 Custom domain 并启用 HTTPS。
 - 原因：部署为全量覆盖，CNAME 必须随源码走；否则 GitHub 设置生成的 `CNAME` 文件会被
