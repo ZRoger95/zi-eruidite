@@ -1,5 +1,4 @@
 ---
-import { SITE } from "@/consts"
 import { pageTitle, type PostView } from "@/lib/content"
 import { localePath, t, type Locale } from "@/lib/i18n"
 import { formatDate, subpostSlug } from "@/lib/utils"
@@ -16,7 +15,6 @@ type ChainItem = {
 type Props = { locale: Locale; currentId: string; items: ChainItem[] }
 
 const { locale, currentId, items } = Astro.props
-const isTopbar = SITE.layout === "topbar"
 ---
 
 {items.map(({ view, Content, authors }, i) => (
@@ -25,11 +23,11 @@ const isTopbar = SITE.layout === "topbar"
     data-url={localePath(`/blog/${view.id}`, locale)}
     data-title={pageTitle(view.data.title)}
     data-embedded={i > 0 || undefined}
-    data-article-topbar={isTopbar || undefined}
+    data-article={true}
   >
     {view.translated && Content ? (
       <>
-        {isTopbar && view.data.image && (
+        {view.data.image && (
           <post-banner>
             <Image
               src={view.data.image}
@@ -78,17 +76,6 @@ const isTopbar = SITE.layout === "topbar"
           </post-meta>
           <p>{view.data.description}</p>
         </header>
-        {!isTopbar && view.data.image && (
-          <post-banner>
-            <Image
-              src={view.data.image}
-              alt={view.data.title}
-              width={1200}
-              height={630}
-              priority={view.id === currentId || undefined}
-            />
-          </post-banner>
-        )}
         <prose-content>
           <Content />
         </prose-content>
@@ -115,6 +102,58 @@ const isTopbar = SITE.layout === "topbar"
     header h1 {
       font-size: var(--step-2);
     }
+  }
+
+  /* 单 DOM：banner 固定为首个子元素（顶栏的视觉顺序）；
+     侧栏用 order 还原 header → banner → prose 的视觉顺序 */
+  article[data-article] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  :root[data-layout="sidebar"] article[data-article] {
+    post-banner {
+      order: 1;
+    }
+
+    prose-content {
+      order: 2;
+    }
+  }
+
+  /* flex 容器内相邻兄弟外边距不再塌陷：块布局下「prose 首可见元素上边距 ↔
+     前一兄弟（banner/header）下边距 --space-m」会塌陷为 max()，flex 下则相加。
+     将首可见元素上边距改为 max(0, 原值 − --space-m)，相加后即与原塌陷结果等价。
+     :nth-child(1 of :not(style, script)) 跳过不生成盒子的元素，取首个可见元素；
+     :not(:first-child) 守卫只修正「被无盒元素顶离 first-child」者（真正的
+     :first-child 已被 typography.css 的 > :first-child 清零，无需再补偿）。
+     数值取自真实样式：标题 1.5em（typography-headings.css）、hr 与 .footnotes
+     均为 var(--space-l)（typography-block.css）；prose 其余块级元素上边距为 0
+     （typography.css 的 :where(...) 规则），无需覆盖。 */
+  article[data-article]
+  :global(
+    prose-content
+      > :nth-child(1 of :not(style, script)):not(:first-child):is(
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6
+      )
+  ) {
+    margin-block-start: max(0px, calc(1.5em - var(--space-m)));
+  }
+
+  article[data-article]
+    :global(
+      prose-content
+        > :nth-child(1 of :not(style, script)):not(:first-child):is(
+          hr,
+          .footnotes
+        )
+    ) {
+    margin-block-start: max(0px, calc(var(--space-l) - var(--space-m)));
   }
 
   header {
@@ -233,7 +272,7 @@ const isTopbar = SITE.layout === "topbar"
     }
   }
 
-  [data-article-topbar] {
+  :root[data-layout="topbar"] article[data-article] {
     header {
       text-align: center;
 
@@ -246,15 +285,21 @@ const isTopbar = SITE.layout === "topbar"
       margin-block-end: var(--space-m);
     }
 
+    /* flex 项的 cross 轴 auto 外边距会抑制 stretch：仅靠 max-width +
+       margin-inline: auto 时，短内容（如未翻译占位）会收缩为 fit-content。
+       显式 width: 100% 复刻块布局下 width: auto 的「满宽 + 限宽居中」行为。 */
     prose-content,
     untranslated-section {
       display: block;
+      width: 100%;
       max-width: var(--measure);
       margin-inline: auto;
     }
   }
 
-  html[data-fullwidth] [data-article-topbar] prose-content {
+  :root[data-layout="topbar"][data-fullwidth]
+    article[data-article]
+    prose-content {
     max-width: 100%;
   }
 </style>

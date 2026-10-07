@@ -66,5 +66,11 @@ const rssPath =
       document.documentElement.dataset.theme = theme
   </script>
 
+  <script is:inline>
+    const layout = localStorage.layout
+    if (layout === "sidebar" || layout === "topbar")
+      document.documentElement.dataset.layout = layout
+  </script>
+
   <slot />
 </head>

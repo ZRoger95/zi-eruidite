@@ -120,9 +120,10 @@ export const SITE = {
   background: { color: "#f6f6f6", opacity: 0.5 },
   ```
 
-- **Layout**: `layout: "topbar"` moves navigation into a centered top bar and uses a
-  centered reading column on all pages; the default `"sidebar"` is a two-column layout
-  with a sidebar.
+- **Layout**: `layout` sets the default site layout — `"sidebar"` (two-column
+  with sidebar) or `"topbar"` (centered reading column with a top bar). Visitors
+  can switch layouts anytime via the toggle next to the theme/language buttons;
+  the choice is stored in the browser, and this config is the first-visit default.
 - **Homepage**: `hero` provides greeting paragraphs per locale (rendered paragraph by
   paragraph); `momentsOnHome: { count: N }` shows the latest N moments on the homepage.
 - **Navigation & socials**:

@@ -26,7 +26,7 @@ export const SITE = {
   defaultPostImage: "/static/1200x630.png",
   /** Path to the avatar image for the homepage hero. Place image in public/ and reference it here. */
   avatar: undefined as string | undefined,
-  /** Layout mode: "sidebar" (default, two-column with sidebar) or "topbar" (top navigation, centered content). */
+  /** Default layout: "sidebar" (two-column with sidebar) or "topbar" (top navigation, centered content). Visitors can switch at runtime; this is the first-visit default. */
   layout: "sidebar" as "sidebar" | "topbar",
   /** Background image configuration. When undefined, no background image is applied. */
   background: undefined as BackgroundConfig | undefined,

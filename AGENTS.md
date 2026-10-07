@@ -88,6 +88,10 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 - **不使用 CSS 框架**（无 Tailwind）。样式使用自主定制元素选择器 + CSS 自定义属性。
 - 页面布局使用 Utopia 12 列流体网格，通过 `--grid-max-width`、`--grid-gutter`、
   `--grid-columns` 和 `grid-column: x / y` 控制区域跨度。
+- **布局（Layout）**：`<html data-layout>` 是布局的唯一信号（`sidebar`/`topbar`）；
+  两种布局共用一份统一骨架（`page-shell > [page-nav, page-toc, main, page-footer]`），
+  由 `:root[data-layout=…]` 作用域 CSS 呈现；访客经切换按钮运行时切换
+  （`localStorage.layout`，见 `docs/superpowers/specs/2026-10-07-layout-switch-design.md`）。
 
 ## 内容与资源规范
 
