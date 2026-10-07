@@ -5,6 +5,7 @@ import PostChain from "@/components/PostChain.astro"
 import ScrollToTop from "@/components/ScrollToTop.astro"
 import SeriesReader from "@/components/SeriesReader.astro"
 import TableOfContents from "@/components/TableOfContents.astro"
+import TranslateButton from "@/components/TranslateButton.astro"
 import Layout from "@/layouts/Layout.astro"
 import {
   getPostViews,
@@ -90,6 +91,7 @@ if (isSubpost(post.id)) {
   )}
   <PostActions slot="actions" prev={prev} next={next} />
   <ScrollToTop floating />
+  <TranslateButton postId={post.id} />
   <PostChain locale="zh" currentId={post.id} items={items} />
   {chain.length > 1 && <SeriesReader />}
 </Layout>

@@ -160,6 +160,15 @@ sitemap），修改 i18n 相关代码后必须全绿。
 结构校验，失败译文与差异清单落 `.translate/`（已 gitignore）。无 draft 门禁，
 `git diff` 即审校；译文自动标 `aiTranslated: true`，手写 `.en.md` 仍然有效。
 
+### dev 翻译按钮
+
+`astro dev` 下中文文章页右下角有「翻译成英文」浮动按钮（模式同 Moment
+Composer，生产构建零痕迹）：点击实时检测译文状态——无译文给「生成」，
+已有译文给「继续（跳过已有）」「全部覆盖」「查看」；系列按整组、独立文章按
+单篇。经 dev 端点 spawn `scripts/translate.mjs` 执行，进度在终端可见。
+内容根默认 `src/content/blog/`，可用 `TRANSLATE_DEV_CONTENT_ROOT` 覆盖
+（测试隔离用）。回归：`bash scripts/tests/translate-ui-check.sh`。
+
 ## 测试与验证指南
 
 测试脚本位于 `scripts/tests/`（部署干跑 `deploy-check.sh`、i18n 回归

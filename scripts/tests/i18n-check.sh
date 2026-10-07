@@ -43,6 +43,13 @@ assert_count() { # $1=文件 $2=片段 $3=期望次数 [$4=说明]
   pass "${4:-${1} 中「${2}」出现 ${3} 次}"
 }
 
+assert_dir_lacks() { # $1=目录 $2=片段 [$3=说明]
+  if grep -rqF -- "${2}" "${1}"; then
+    fail "${3:-断言目录不包含}（${1} 出现 ${2}）"
+  fi
+  pass "${3:-${1} 不含 ${2}}"
+}
+
 # 受控 .env：备份 → 仅写 SITE_URL → 退出时恢复原文件
 ENV_KEEP=/tmp/i18n-check.env.keep
 if [ -f .env ]; then cp .env "$ENV_KEEP"; else rm -f "$ENV_KEEP"; fi
@@ -160,3 +167,10 @@ assert_has dist/blog/index.html 'href="https://example.com/rss.xml"' "zh 页 RSS
 # Ruling 12：原 '>博客<' 实际由导航标签满足，未覆盖页面标题，追加标题断言
 assert_has dist/blog/index.html '<title>博客 | ' "中文列表页面标题"
 assert_has dist/en/blog/index.html '<title>Blog | ' "英文列表页面标题"
+
+# ---------- dev 翻译按钮：生产构建零痕迹（目录级断言，Task 3） ----------
+# 注：TranslateButton 的 scoped CSS 死码（`translate-dev` 类名）会随构建进入
+# dist，属已知接受项（与 MomentComposer 的 compose-* 先例一致）；此处只断言
+# 标记与端点字样两串。
+assert_dir_lacks dist 'data-translate-dev' "dist 无翻译按钮标记（生产零痕迹）"
+assert_dir_lacks dist 'api/translate' "dist 无翻译端点字样（生产零痕迹）"

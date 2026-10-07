@@ -9,6 +9,8 @@
 // 被破坏的失败工件场景；
 // --fail-from <n> <status>（Task 6/Ruling 8）：全局序号 ≥ n 的请求一律返回该
 // status，模拟系列翻译「中途开始」的持续失败。
+// --delay <ms>（翻译按钮 Task 1）：每个请求在响应前统一延迟，供并发/断连
+// 场景拉长任务时长。
 //
 // 每请求追加一行 JSONL 日志：
 //   {"n":<序号>,"auth":"<Authorization 头>","model":"<body.model>",
@@ -24,7 +26,8 @@ import process from "node:process"
 const USAGE =
   "用法：node scripts/tests/translate-stub.mjs --port-file <F> --log <F> " +
   "[--fail-first <status>] [--fail-always <status>] [--fail-from <n> <status>] " +
-  "[--reject-auth] [--truncate-at <n>] [--truncate-forever] [--corrupt <mode>]"
+  "[--reject-auth] [--truncate-at <n>] [--truncate-forever] [--corrupt <mode>] " +
+  "[--delay <ms>]"
 
 const USAGE_FIXED = {
   prompt_tokens: 111,
@@ -44,6 +47,7 @@ function parseArgs(argv) {
     truncateAt: 0,
     truncateForever: false,
     corrupt: "",
+    delay: 0,
   }
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
@@ -74,6 +78,8 @@ function parseArgs(argv) {
       opts.truncateForever = true
     } else if (arg === "--corrupt") {
       opts.corrupt = take()
+    } else if (arg === "--delay") {
+      opts.delay = Number(take())
     } else {
       throw new Error(`未知参数：${arg}\n${USAGE}`)
     }
@@ -302,7 +308,11 @@ function main() {
     req.on("data", (chunk) => {
       raw += chunk
     })
-    req.on("end", () => {
+    req.on("end", async () => {
+      // --delay：响应前统一延迟一次（并发/断连场景拉长任务时长用）。
+      if (opts.delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, opts.delay))
+      }
       seq += 1
       let body
       try {

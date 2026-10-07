@@ -12,6 +12,7 @@ import { externalLinks } from "./src/lib/external-links"
 import { headingNamespace } from "./src/lib/heading-namespace"
 import { headingAnchors } from "./src/lib/heading-anchors"
 import { momentComposerPlugin } from "./src/lib/moment-composer-plugin"
+import { translateDevPlugin } from "./src/lib/translate-dev-plugin"
 
 const env = loadEnv(process.env.NODE_ENV ?? "production", process.cwd(), "")
 const site = (env.SITE_URL ?? "").trim()
@@ -28,7 +29,7 @@ export default defineConfig({
   compressHTML: true,
   prefetch: { prefetchAll: true },
   vite: {
-    plugins: [momentComposerPlugin()],
+    plugins: [momentComposerPlugin(), translateDevPlugin()],
   },
   integrations: [
     sitemap({
