@@ -159,6 +159,9 @@ sitemap），修改 i18n 相关代码后必须全绿。
 读取 `.env` 的 `TRANSLATE_*`（模板见 `.env.example`）；保结构翻译并在写盘前做
 结构校验，失败译文与差异清单落 `.translate/`（已 gitignore）。无 draft 门禁，
 `git diff` 即审校；译文自动标 `aiTranslated: true`，手写 `.en.md` 仍然有效。
+可选 `TRANSLATE_AUTHOR=<slug>`（取值 = `src/content/authors/` 下的文件名，如
+`deepseek`）把 AI 服务商追加为英文译文作者（仅 `.en.md`，系列全部文件；作者
+文件缺失仅警告、照常署名，由构建引用校验兜底）。
 
 ### dev 翻译按钮
 

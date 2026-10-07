@@ -5,7 +5,9 @@
 # 文链、跳过文件的盘上上下文）、S13–S16（七类结构校验失败工件、--force 不覆盖、
 # 系列失败即停、源必填字段 API 前失败）、S17–S21（429 后重试成功、持续 5xx 重
 # 试耗尽、401/404 不重试、网络错误、系列中途失败即停）、S22（围栏陷阱：围栏内
-# 的 ## 行不得成为分块切点）。所有场景都在 /tmp 副本
+# 的 ## 行不得成为分块切点）、S23a–S23e（TRANSLATE_AUTHOR 译文署名：块序列
+# 追加、行内数组引号风格、同 slug 去重、作者文件缺失仅警告、系列父+子全追加）、
+# S24（不支持的 authors 写法在 API 前失败）。所有场景都在 /tmp 副本
 # 上操作，绝不写坏仓库内 fixtures；受控 .env 由 trap 恢复，后台测试桩由 trap 先
 # 行停止，工件目录 .translate/ 逐场景与退出时清理。后续任务在同一文件追加场景。
 set -euo pipefail
@@ -14,7 +16,7 @@ root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
 # 防调用侧 shell 导出同名变量绕过受控 .env（loadEnvFile 不覆盖已有环境变量）。
-unset TRANSLATE_BASE_URL TRANSLATE_API_KEY TRANSLATE_MODEL
+unset TRANSLATE_BASE_URL TRANSLATE_API_KEY TRANSLATE_MODEL TRANSLATE_AUTHOR
 
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
@@ -99,13 +101,17 @@ cleanup_all() {
 }
 trap cleanup_all EXIT
 
-write_env() { # [base_url]：有值时附 TRANSLATE_* 三项（测试值）
+write_env() { # [base_url] [author]：有 base_url 时附 TRANSLATE_* 三项（测试值）；
+  # 第二参数非空时附 TRANSLATE_AUTHOR（S23+）。
   {
     printf 'SITE_URL=https://example.com\n'
     if [ "$#" -ge 1 ] && [ -n "${1}" ]; then
       printf 'TRANSLATE_BASE_URL=%s\n' "${1}"
       printf 'TRANSLATE_API_KEY=test-key\n'
       printf 'TRANSLATE_MODEL=test-model\n'
+    fi
+    if [ "$#" -ge 2 ] && [ -n "${2}" ]; then
+      printf 'TRANSLATE_AUTHOR=%s\n' "${2}"
     fi
   } > .env
 }
@@ -241,6 +247,7 @@ DST="$WORK/s4/single.en.md"
 assert_file "$DST" "S4：生成译文"
 assert_has "$DST" 'title: "[EN] 单篇示例：结构校验的陷阱"' "S4：title 为 JSON.stringify 逐字形态"
 assert_has "$DST" 'aiTranslated: true' "S4：追加 aiTranslated"
+assert_lacks "$DST" 'deepseek' "S4：未设 TRANSLATE_AUTHOR 时零署名改动（对照）"
 assert_has "$DST" "$(grep '^date:' "$WORK/s4/single.md")" "S4：date 行与源一致"
 assert_has "$DST" "$(grep '^tags:' "$WORK/s4/single.md")" "S4：tags 行与源一致"
 assert_has "$DST" 'const price = "$100"' "S4：围栏内内容逐字保留"
@@ -595,3 +602,128 @@ assert_count "$L" '"n":' 3 "S22：桩收到 3 次请求（frontmatter + 2 块）
 n=$( (grep -cE '<<<SOURCE.*FENCE-TRAP-OPEN.*FENCE-TRAP-CLOSE' "$L" || true) )
 [ "${n}" -eq 1 ] || fail "S22：围栏块应整体进入同一次正文请求（源文区域同时含 OPEN/CLOSE 的请求数 = ${n}，期望 1）"
 pass "S22：同一请求的源文区域同时包含 FENCE-TRAP-OPEN 与 FENCE-TRAP-CLOSE"
+
+# ---------- S23：译文作者署名（TRANSLATE_AUTHOR 追加到 .en.md） ----------
+# 作者文件检查相对仓库根 src/content/authors/：deepseek 与 enscribe 为仓库
+# 现有作者文件（本场景读仓库、不写）；ghost-author 故意不存在（仅警告）。
+
+# S23a：块序列 —— 追加到末项之后、人类作者在前、仅出现一次
+rm -rf "$WORK/s23a"
+cp -R scripts/tests/fixtures/translate "$WORK/s23a"
+stub_start
+write_env "http://127.0.0.1:$(cat "$WORK/stub.port")" deepseek
+LOG="$WORK/s23a.log"
+run "$WORK/s23a/single.md"
+[ "${rc}" -eq 0 ] || fail "S23a：应退出 0（实际 ${rc}）"
+pass "S23a：退出 0"
+DST="$WORK/s23a/single.en.md"
+assert_file "$DST" "S23a：生成译文"
+assert_has "$DST" '  - deepseek' "S23a：authors 追加 deepseek（块序列）"
+assert_count "$DST" '  - deepseek' 1 "S23a：deepseek 恰出现 1 次"
+l_human=$(line_of "$DST" '- enscribe')
+l_ai=$(line_of "$DST" '- deepseek')
+if [ "${l_human}" -lt "${l_ai}" ]; then
+  pass "S23a：人类作者在前、AI 服务商在后"
+else
+  fail "S23a：署名顺序错误（enscribe 行 ${l_human}，deepseek 行 ${l_ai}）"
+fi
+assert_has "$DST" 'aiTranslated: true' "S23a：追加署名不影响 aiTranslated 标记"
+assert_lacks "$LOG" "警告：TRANSLATE_AUTHOR" "S23a：作者文件存在时零警告"
+assert_count "$WORK/stub.log" '"n":' 2 "S23a：桩收到 2 次请求（frontmatter+正文）"
+
+# S23b：行内数组 —— 追加时沿用首项引号风格
+rm -rf "$WORK/s23b"
+cp -R scripts/tests/fixtures/translate "$WORK/s23b"
+cat > "$WORK/s23b/flow.md" <<'EOF'
+---
+title: "行内作者数组"
+description: "用于验证 authors 行内数组追加时沿用引号风格。"
+date: 2026-10-07
+authors: ['enscribe']
+---
+
+FLOW-BODY-MARKER 行内数组写法的正文。
+EOF
+stub_start
+write_env "http://127.0.0.1:$(cat "$WORK/stub.port")" deepseek
+LOG="$WORK/s23b.log"
+run "$WORK/s23b/flow.md"
+[ "${rc}" -eq 0 ] || fail "S23b：应退出 0（实际 ${rc}）"
+pass "S23b：退出 0"
+DST="$WORK/s23b/flow.en.md"
+assert_file "$DST" "S23b：生成译文"
+assert_has "$DST" "authors: ['enscribe', 'deepseek']" "S23b：行内数组追加并沿用单引号风格"
+
+# S23c：去重 —— slug 已在 authors 列表中时不重复
+rm -rf "$WORK/s23c"
+cp -R scripts/tests/fixtures/translate "$WORK/s23c"
+stub_start
+write_env "http://127.0.0.1:$(cat "$WORK/stub.port")" enscribe
+LOG="$WORK/s23c.log"
+run "$WORK/s23c/single.md"
+[ "${rc}" -eq 0 ] || fail "S23c：应退出 0（实际 ${rc}）"
+pass "S23c：退出 0"
+DST="$WORK/s23c/single.en.md"
+assert_count "$DST" '- enscribe' 1 "S23c：已含同 slug 不重复追加"
+assert_lacks "$DST" 'deepseek' "S23c：未引入其他作者"
+assert_lacks "$LOG" "警告：TRANSLATE_AUTHOR" "S23c：零警告"
+
+# S23d：作者文件缺失 —— 仅警告一次，照常翻译与署名（构建兜底）
+rm -rf "$WORK/s23d"
+cp -R scripts/tests/fixtures/translate "$WORK/s23d"
+stub_start
+write_env "http://127.0.0.1:$(cat "$WORK/stub.port")" ghost-author
+LOG="$WORK/s23d.log"
+run "$WORK/s23d/single.md"
+[ "${rc}" -eq 0 ] || fail "S23d：应退出 0（仅警告，实际 ${rc}）"
+pass "S23d：退出 0"
+assert_has "$LOG" "警告：TRANSLATE_AUTHOR=ghost-author" "S23d：警告含取值"
+assert_count "$LOG" "警告：TRANSLATE_AUTHOR" 1 "S23d：警告恰一次（启动时）"
+DST="$WORK/s23d/single.en.md"
+assert_has "$DST" '  - ghost-author' "S23d：照常署名（构建时由引用校验兜底）"
+assert_count "$WORK/stub.log" '"n":' 2 "S23d：照常完成翻译（2 次请求）"
+
+# S23e：系列 —— 父与所有子文章的译文都追加
+rm -rf "$WORK/s23e"
+cp -R scripts/tests/fixtures/translate "$WORK/s23e"
+stub_start
+write_env "http://127.0.0.1:$(cat "$WORK/stub.port")" deepseek
+LOG="$WORK/s23e.log"
+run "$WORK/s23e/series"
+[ "${rc}" -eq 0 ] || fail "S23e：应退出 0（实际 ${rc}）"
+pass "S23e：退出 0"
+for name in index beta alpha; do
+  assert_has "$WORK/s23e/series/${name}.en.md" '  - deepseek' "S23e：${name}.en.md 追加署名"
+done
+pass "S23：译文署名场景全部符合预期"
+
+# ---------- S24：不支持的 authors 写法（多行 flow）→ API 前失败、零请求零落盘 ----------
+# 仅当设置了 TRANSLATE_AUTHOR 才解析 authors 结构；不支持的写法在 translateFile
+# 最初（任何 API 调用前）抛错，避免烧完 token 才发现无法署名。
+rm -rf "$WORK/s24"
+cp -R scripts/tests/fixtures/translate "$WORK/s24"
+cat > "$WORK/s24/broken-authors.md" <<'EOF'
+---
+title: "多行作者数组"
+description: "验证不支持的 authors 写法在任何 API 调用前报错。"
+date: 2026-10-07
+authors: [
+  enscribe
+]
+---
+
+BROKEN-AUTHORS-BODY 正文不应被翻译。
+EOF
+stub_start
+write_env "http://127.0.0.1:$(cat "$WORK/stub.port")" deepseek
+LOG="$WORK/s24.log"
+run "$WORK/s24/broken-authors.md"
+expect_error "S24：不支持的 authors 写法" "authors"
+if [ -s "$WORK/stub.log" ]; then
+  fail "S24：应在任何 API 调用前失败（桩日志非空）"
+fi
+pass "S24：零请求（API 前失败）"
+if [ -e "$WORK/s24/broken-authors.en.md" ]; then
+  fail "S24：不应落盘（broken-authors.en.md 意外出现）"
+fi
+pass "S24：零落盘"

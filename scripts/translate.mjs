@@ -4,7 +4,8 @@
 // 阶段二：CLI/配置/发现/计划（Task 1）+ 单文件翻译执行与写盘（Task 2）+
 // 分块、已译上下文与截断续写（Task 3）+ 系列整组执行与跨文件上下文链
 // （Task 4）+ 写盘前结构校验与失败工件（Task 5）+ 失败处理：429/5xx 与
-// 网络异常退避重试、401/403 立即失败（Task 6）。
+// 网络异常退避重试、401/403 立即失败（Task 6）+ 译文作者署名：.env 的
+// TRANSLATE_AUTHOR（如 deepseek）追加到 .en.md 的 authors 列表（可选）。
 
 import {
   existsSync,
@@ -83,9 +84,12 @@ function parseArgs(argv) {
 
 // ---------- 配置 ----------
 
+// 作者条目目录（相对仓库根）：TRANSLATE_AUTHOR 的检查以此为基准。
+const AUTHORS_DIR = "src/content/authors"
+
 function loadConfig(dryRun) {
   if (dryRun) {
-    return { baseUrl: "", apiKey: "", model: "" }
+    return { baseUrl: "", apiKey: "", model: "", author: null }
   }
   try {
     process.loadEnvFile()
@@ -105,7 +109,16 @@ function loadConfig(dryRun) {
       "缺少 TRANSLATE_BASE_URL / TRANSLATE_API_KEY / TRANSLATE_MODEL。请 cp .env.example .env 并填写（见 .env.example 注释）。",
     )
   }
-  return { baseUrl, apiKey, model }
+  // TRANSLATE_AUTHOR（可选）：AI 服务商署名——追加到英文译文 .en.md 的
+  // authors 列表（中文原文不动）。作者文件缺失时仅警告、照常翻译与署名
+  //（构建时由 Astro 引用校验兜底）；留空/不设则不启用。
+  const author = (process.env.TRANSLATE_AUTHOR || "").trim() || null
+  if (author !== null && !existsSync(path.join(AUTHORS_DIR, `${author}.md`))) {
+    console.error(
+      `警告：TRANSLATE_AUTHOR=${author} 未找到作者文件 ${AUTHORS_DIR}/${author}.md，仍将署名（构建时会报引用错误）；请创建该文件或修正 .env。`,
+    )
+  }
+  return { baseUrl, apiKey, model, author }
 }
 
 // ---------- 文件发现 ----------
@@ -440,6 +453,124 @@ function renderFrontmatter(fmLines, { title, description }) {
   }
   out.push("aiTranslated: true")
   return out
+}
+
+// ---------- 译文作者追加（TRANSLATE_AUTHOR） ----------
+
+const COMPLEX_AUTHORS_MESSAGE =
+  "frontmatter 的 authors 使用暂不支持的写法（仅支持块序列与单行行内数组，如 authors: ['a', 'b']）"
+
+// 剥去两侧成对引号（'x' / "x"）供比较；其余原样返回。
+function unquoteValue(raw) {
+  const value = raw.trim()
+  if (value.length >= 2) {
+    const quote = value[0]
+    if ((quote === "'" || quote === '"') && value[value.length - 1] === quote) {
+      return value.slice(1, -1)
+    }
+  }
+  return value
+}
+
+// 拆分单行行内数组的内层文本（引号内的逗号不算分隔）；未闭合引号、嵌套
+// 括号或空项等异常结构一律抛 COMPLEX_AUTHORS_MESSAGE。
+function splitFlowItems(inner) {
+  const items = []
+  let current = ""
+  let quote = null
+  for (const ch of inner) {
+    if (quote !== null) {
+      if (ch === quote) {
+        quote = null
+      }
+      current += ch
+    } else if (ch === "'" || ch === '"') {
+      quote = ch
+      current += ch
+    } else if (ch === ",") {
+      items.push(current)
+      current = ""
+    } else if ("[]{}".includes(ch)) {
+      throw new Error(COMPLEX_AUTHORS_MESSAGE)
+    } else {
+      current += ch
+    }
+  }
+  if (quote !== null) {
+    throw new Error(COMPLEX_AUTHORS_MESSAGE)
+  }
+  items.push(current)
+  const values = items.map((item) => item.trim())
+  if (values.some((value) => value === "")) {
+    throw new Error(COMPLEX_AUTHORS_MESSAGE)
+  }
+  return values
+}
+
+// 解析单行行内数组原文（含两侧括号）为条目原文数组。
+function parseFlowItems(raw) {
+  const inner = raw.slice(1).trim()
+  if (!inner.endsWith("]")) {
+    throw new Error(COMPLEX_AUTHORS_MESSAGE)
+  }
+  return splitFlowItems(inner.slice(0, -1))
+}
+
+// 追加条目的写法：跟随首项引号风格（'…' / "…" / 裸写）；取值非常规
+//（含特殊字符）时强制双引号，保证 YAML 语义不变。
+const PLAIN_SCALAR_RE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/
+function quoteForStyle(sample, slug) {
+  if (sample.startsWith("'")) {
+    return `'${slug}'`
+  }
+  if (sample.startsWith('"')) {
+    return `"${slug}"`
+  }
+  return PLAIN_SCALAR_RE.test(slug) ? slug : JSON.stringify(slug)
+}
+
+// 把 slug 追加到 frontmatter 的 authors 列表末尾（幂等：已含同 slug 返回
+// 原数组）。仅支持块序列（`authors:` 后跟 `- 值` 行）与单行行内数组；
+// 其他写法抛 COMPLEX_AUTHORS_MESSAGE——调用发生在任何 API 调用之前，
+// 不支持的写法不会烧 token。返回新数组、不修改入参。
+function appendProviderAuthor(fmLines, slug) {
+  const index = fmLines.findIndex((line) => /^authors\s*:/.test(line))
+  if (index === -1) {
+    throw new Error("源文件缺少必填 frontmatter 字段：authors")
+  }
+  const raw = fmLines[index].replace(/^authors\s*:/, "").trim()
+
+  if (raw.startsWith("[")) {
+    const items = parseFlowItems(raw)
+    if (items.some((item) => unquoteValue(item) === slug)) {
+      return fmLines
+    }
+    const appended = quoteForStyle(items[0] ?? "", slug)
+    const inner = raw.slice(1, -1).trim()
+    const out = [...fmLines]
+    out[index] = `authors: [${inner}, ${appended}]`
+    return out
+  }
+
+  if (raw === "") {
+    let end = index
+    while (end + 1 < fmLines.length && /^\s*-\s*\S/.test(fmLines[end + 1])) {
+      end += 1
+    }
+    const items = fmLines.slice(index + 1, end + 1)
+    const hasSlug = items.some(
+      (line) => unquoteValue(line.replace(/^\s*-\s*/, "")) === slug,
+    )
+    if (hasSlug) {
+      return fmLines
+    }
+    const indent = /^(\s*)-/.exec(items[0] ?? "")?.[1] ?? "  "
+    const out = [...fmLines]
+    out.splice(end + 1, 0, `${indent}- ${quoteForStyle("", slug)}`)
+    return out
+  }
+
+  throw new Error(COMPLEX_AUTHORS_MESSAGE)
 }
 
 // ---------- 正文分块与续写 ----------
@@ -830,6 +961,12 @@ function accumulateUsage(stats, usage) {
 // context = 本文件译文尾部 CONTEXT_TAIL 字符，供下一文件使用。
 async function translateFile(entry, { config, system }, context = "") {
   const fm = parseFrontmatter(readFileSync(entry.src, "utf8"))
+  // 作者追加先于任何 API 调用完成结构解析：不支持的 authors 写法立即失败
+  //（仅当 TRANSLATE_AUTHOR 非空时解析）。
+  const sourceLines =
+    config.author === null
+      ? fm.lines
+      : appendProviderAuthor(fm.lines, config.author)
   const stats = { prompt: 0, completion: 0, total: 0 }
 
   const fmContent = await chatWithContinuation(
@@ -849,7 +986,7 @@ async function translateFile(entry, { config, system }, context = "") {
 
   // 正文译完后先在内存校验；通过才写目标，否则只写 .translate/ 工件并抛
   // 哨兵错误（消息为最终文案，不被「翻译失败（…）」包装，Ruling 6）。
-  const fmLines = renderFrontmatter(fm.lines, fields)
+  const fmLines = renderFrontmatter(sourceLines, fields)
   const output = `---\n${fmLines.join("\n")}\n---\n\n${body}\n`
   const problems = validateStructure(
     {
