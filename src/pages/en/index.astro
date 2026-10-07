@@ -1,0 +1,33 @@
+---
+import BlogCard from "@/components/BlogCard.astro"
+import MetaPage from "@/components/MetaPage.astro"
+import Layout from "@/layouts/Layout.astro"
+import { SITE } from "@/consts"
+import { getPostViews } from "@/lib/content"
+import { t, type Locale } from "@/lib/i18n"
+
+const locale: Locale = "en"
+const posts = await getPostViews("en")
+const latestPosts = posts.slice(0, 5)
+---
+
+<Layout>
+  <MetaPage slot="head" alternates={{ zh: "/", en: "/en/" }} />
+
+  <hero-card>
+    {SITE.avatar && (
+      <hero-avatar>
+        <img src={SITE.avatar} alt={`${SITE.title} avatar`} width="64" height="64" />
+      </hero-avatar>
+    )}
+    <h1>{t(locale, "heroGreeting")} {SITE.title}</h1>
+    {SITE.hero[locale].paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+  </hero-card>
+
+  <latest-section>
+    <h2>{t(locale, "latestPosts")}</h2>
+    <ul>
+      {latestPosts.map((post) => <BlogCard post={post} />)}
+    </ul>
+  </latest-section>
+</Layout>

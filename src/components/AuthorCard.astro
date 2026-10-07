@@ -15,7 +15,7 @@ const { author } = Astro.props
 const { name, pronouns, avatar, bio, mail, socials } = author.data
 
 const ICONS: Record<string, { label: string; icon: SvgComponent }> = {
-  website: { label: "Website", icon: Globe },
+  website: { label: "网站", icon: Globe },
   github: { label: "GitHub", icon: GitHub },
   twitter: { label: "Twitter", icon: Twitter },
 }
@@ -25,7 +25,7 @@ const links = [
     href,
     ...(ICONS[key] ?? { label: key, icon: Link }),
   })),
-  ...(mail ? [{ href: `mailto:${mail}`, label: "Email", icon: Email }] : []),
+  ...(mail ? [{ href: `mailto:${mail}`, label: "邮箱", icon: Email }] : []),
 ]
 
 const href = `/authors/${author.id}`

@@ -1,16 +1,18 @@
 ---
 import ArrowUp from "@/assets/icons/arrow-up.svg"
+import { localeFromPath, t } from "@/lib/i18n"
 
 type Props = { floating?: boolean }
 
 const { floating } = Astro.props
+const locale = localeFromPath(Astro.url.pathname)
 ---
 
 <button
   data-icon-button
   data-scroll-top
   data-floating={floating || undefined}
-  aria-label="Scroll to top"
+  aria-label={t(locale, "scrollTop")}
 >
   <ArrowUp />
 </button>

@@ -2,6 +2,10 @@
 import sansWoff2 from "@/assets/fonts/IBMPlexSans-VariableFont_wdth,wght.woff2?url"
 import sansItalicWoff2 from "@/assets/fonts/IBMPlexSans-Italic-VariableFont_wdth,wght.woff2?url"
 import { SITE } from "@/consts"
+import { localeFromPath } from "@/lib/i18n"
+
+const rssPath =
+  localeFromPath(Astro.url.pathname) === "en" ? "/en/rss.xml" : "/rss.xml"
 ---
 
 <head>
@@ -44,7 +48,7 @@ import { SITE } from "@/consts"
     rel="alternate"
     type="application/rss+xml"
     title={SITE.title}
-    href={new URL("rss.xml", Astro.site)}
+    href={new URL(rssPath, Astro.site)}
   >
 
   <link rel="preload" href={sansWoff2} as="font" type="font/woff2" crossorigin>
@@ -60,6 +64,12 @@ import { SITE } from "@/consts"
     const theme = localStorage.theme
     if (theme === "light" || theme === "dark")
       document.documentElement.dataset.theme = theme
+  </script>
+
+  <script is:inline>
+    const layout = localStorage.layout
+    if (layout === "sidebar" || layout === "topbar")
+      document.documentElement.dataset.layout = layout
   </script>
 
   <slot />

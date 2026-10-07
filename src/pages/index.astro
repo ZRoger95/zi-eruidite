@@ -5,7 +5,9 @@ import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
 import { SITE } from "@/consts"
 import { getMoments, getPosts } from "@/lib/content"
+import { t, type Locale } from "@/lib/i18n"
 
+const locale: Locale = "zh"
 const posts = await getPosts()
 const latestPosts = posts.slice(0, 5)
 const moments = SITE.momentsOnHome
@@ -14,7 +16,7 @@ const moments = SITE.momentsOnHome
 ---
 
 <Layout>
-  <MetaPage slot="head" />
+  <MetaPage slot="head" alternates={{ zh: "/", en: "/en/" }} />
 
   <hero-card>
     {SITE.avatar && (
@@ -22,33 +24,12 @@ const moments = SITE.momentsOnHome
         <img src={SITE.avatar} alt={`${SITE.title} avatar`} width="64" height="64" />
       </hero-avatar>
     )}
-    <h1>Hi! I'm {SITE.title}</h1>
-    <p>
-      astro-erudite is
-      <a href="https://enscribe.dev" target="_blank" rel="noopener noreferrer"
-        >enscribe</a
-      >'s opinionated, unstyled static blogging template built with
-      <a href="https://astro.build" target="_blank" rel="noopener noreferrer"
-        >Astro</a
-      >
-      and native CSS. astro-erudite uses no UI or CSS framework and contains
-      minimal dependencies.
-    </p>
-    <p>
-      To use this template, check out the
-      <a
-        href="https://github.com/jktrn/astro-erudite"
-        target="_blank"
-        rel="noopener noreferrer"
-        >GitHub</a
-      >
-      repository. To learn more about why this template exists, read this blog
-      post: <a href="/blog/introducing-v2">Introducing astro-erudite v2</a>.
-    </p>
+    <h1>{t(locale, "heroGreeting")} {SITE.title}</h1>
+    {SITE.hero[locale].paragraphs.map((paragraph) => <p>{paragraph}</p>)}
   </hero-card>
 
   <latest-section>
-    <h2>Latest posts</h2>
+    <h2>{t(locale, "latestPosts")}</h2>
     <ul>
       {latestPosts.map((post) => <BlogCard post={post} />)}
     </ul>

@@ -42,6 +42,7 @@
 
 - **Topbar Layout** — a site layout mode where global navigation is placed in a centered top navigation bar and primary page content uses a centered reading column across main pages, not only individual blog posts.
 - **Article Header Display** — the wider, centered top portion of a blog article in Topbar Layout, containing breadcrumbs, the banner image, title, and metadata before the narrower reading column begins.
+- **Layout Preference（布局偏好）** — 访客通过切换按钮选择的布局（`sidebar` / `topbar`），存于浏览器 `localStorage.layout`；优先于 `SITE.layout`（后者仅为默认值）。
 
 ## Editing / Production
 

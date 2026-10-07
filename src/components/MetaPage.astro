@@ -1,33 +1,60 @@
 ---
 import { SITE } from "@/consts"
 import { pageTitle } from "@/lib/content"
+import { localeFromPath, SITE_META } from "@/lib/i18n"
 
 type Props = {
   title?: string
   description?: string
   noindex?: boolean
+  follow?: boolean
+  canonical?: string
+  alternates?: { zh: string; en: string }
 }
 
-const { title, description = SITE.description, noindex = false } = Astro.props
+const {
+  title,
+  description = SITE.description,
+  noindex = false,
+  follow = false,
+  canonical: canonicalPath,
+  alternates,
+} = Astro.props
+const locale = localeFromPath(Astro.url.pathname)
 
 const base = Astro.site ?? new URL(Astro.url.origin)
 const ogTitle = title ?? SITE.title
 const fullTitle = title ? pageTitle(title) : SITE.title
-const canonical = new URL(Astro.url.pathname, base)
+const canonical = new URL(canonicalPath ?? Astro.url.pathname, base)
 const ogImage = new URL(SITE.defaultPageImage, base)
+const altLinks = alternates
+  ? [
+      { hreflang: "zh-CN", href: alternates.zh },
+      { hreflang: "en", href: alternates.en },
+      { hreflang: "x-default", href: alternates.zh },
+    ]
+  : []
 ---
 
 <title>{fullTitle}</title>
 <meta name="description" content={description}>
 <link rel="canonical" href={canonical}>
-{noindex && <meta name="robots" content="noindex, nofollow" />}
+{altLinks.map(({ hreflang, href }) => (
+    <link rel="alternate" hreflang={hreflang} href={new URL(href, base)} />
+  ))}
+{noindex && (
+  <meta
+    name="robots"
+    content={follow ? "noindex, follow" : "noindex, nofollow"}
+  />
+)}
 
 <meta property="og:title" content={ogTitle}>
 <meta property="og:description" content={description}>
 <meta property="og:url" content={canonical}>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content={SITE.title}>
-<meta property="og:locale" content={SITE.locale.replace("-", "_")}>
+<meta property="og:locale" content={SITE_META[locale].ogLocale}>
 <meta property="og:image" content={ogImage}>
 <meta property="og:image:alt" content={ogTitle}>
 

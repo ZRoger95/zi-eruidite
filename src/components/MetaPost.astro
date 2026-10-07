@@ -2,14 +2,17 @@
 import { getEntries, type CollectionEntry } from "astro:content"
 import { SITE } from "@/consts"
 import { pageTitle } from "@/lib/content"
+import { localeFromPath, SITE_META } from "@/lib/i18n"
 
 type Props = {
   post: CollectionEntry<"blog">
   canonical?: string
+  alternates?: { zh: string; en: string }
 }
 
-const { post, canonical: canonicalPath } = Astro.props
+const { post, canonical: canonicalPath, alternates } = Astro.props
 const { title, description, date, image } = post.data
+const locale = localeFromPath(Astro.url.pathname)
 
 const base = Astro.site ?? new URL(Astro.url.origin)
 const authors = await getEntries(post.data.authors)
@@ -19,18 +22,28 @@ const canonical = new URL(canonicalPath ?? Astro.url.pathname, base)
 const ogImage = image
   ? new URL(image.src, base)
   : new URL(SITE.defaultPostImage, base)
+const altLinks = alternates
+  ? [
+      { hreflang: "zh-CN", href: alternates.zh },
+      { hreflang: "en", href: alternates.en },
+      { hreflang: "x-default", href: alternates.zh },
+    ]
+  : []
 ---
 
 <title>{pageTitle(title)}</title>
 <meta name="description" content={description}>
 <link rel="canonical" href={canonical}>
+{altLinks.map(({ hreflang, href }) => (
+    <link rel="alternate" hreflang={hreflang} href={new URL(href, base)} />
+  ))}
 
 <meta property="og:title" content={title}>
 <meta property="og:description" content={description}>
 <meta property="og:type" content="article">
 <meta property="og:url" content={url}>
 <meta property="og:site_name" content={SITE.title}>
-<meta property="og:locale" content={SITE.locale.replace("-", "_")}>
+<meta property="og:locale" content={SITE_META[locale].ogLocale}>
 <meta property="og:image" content={ogImage}>
 <meta property="og:image:alt" content={title}>
 

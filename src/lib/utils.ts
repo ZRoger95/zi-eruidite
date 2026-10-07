@@ -1,7 +1,9 @@
-export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
+import type { Locale } from "@/lib/i18n"
+
+export function formatDate(date: Date, locale: Locale = "zh"): string {
+  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",
-    month: "short",
+    month: locale === "zh" ? "long" : "short",
     day: "numeric",
     timeZone: "UTC",
   }).format(date)

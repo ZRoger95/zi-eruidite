@@ -18,15 +18,19 @@ import "@/styles/shape.css"
 
 import Footer from "@/components/Footer.astro"
 import MetaHead from "@/components/MetaHead.astro"
-import Sidebar from "@/components/Sidebar.astro"
-import Topbar from "@/components/Topbar.astro"
+import SiteBar from "@/components/SiteBar.astro"
 import { SITE } from "@/consts"
 import type { BackgroundStyle } from "@/consts"
+import { localeFromPath, SITE_META, t } from "@/lib/i18n"
 
-type Props = { crumbs?: { label: string; href: string }[] }
+type Props = {
+  crumbs?: { label: string; href: string }[]
+  /** Blog article pages use a wider content column (article header display). */
+  article?: boolean
+}
 
-const { crumbs } = Astro.props
-const isTopbar = SITE.layout === "topbar"
+const { crumbs, article } = Astro.props
+const locale = localeFromPath(Astro.url.pathname)
 
 // Compute background CSS custom properties
 const bg = SITE.background
@@ -39,12 +43,15 @@ const bgSize = bgStyle === "tile" ? "auto" : bgStyle
 const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
 ---
 
-<html lang={SITE.locale} dir={SITE.dir}>
+<html
+  lang={SITE_META[locale].htmlLang}
+  dir={SITE.dir}
+  data-layout={SITE.layout}
+>
   <MetaHead>
     <slot name="head" />
   </MetaHead>
   <body
-    data-layout={SITE.layout}
     style={hasBackground ? Object.assign({
       "--bg-image": bgImage ?? "none",
       "--bg-color": bgColor ?? "transparent",
@@ -53,38 +60,19 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
       "--bg-opacity": String(bgOpacity),
     }) : undefined}
   >
-    <a class="skip-link" href="#main-content">跳到主内容</a>
-    {isTopbar ? (
-      <>
-        <Topbar><slot name="actions" slot="actions" /></Topbar>
-        <page-content-topbar>
-          <topbar-article>
-            {Astro.slots.has("toc") && (
-              <page-toc><slot name="toc" /></page-toc>
-            )}
-            <main id="main-content"><slot /></main>
-          </topbar-article>
-          <page-footer><Footer /></page-footer>
-        </page-content-topbar>
-      </>
-    ) : (
-      <page-grid>
-        <page-header>
-          <page-nav>
-            <Sidebar crumbs={crumbs}
-              ><slot name="actions" slot="actions" /></Sidebar
-            >
-          </page-nav>
-          {Astro.slots.has("toc") && (
-            <page-toc><slot name="toc" /></page-toc>
-          )}
-        </page-header>
-        <page-content>
-          <main id="main-content"><slot /></main>
-          <page-footer><Footer /></page-footer>
-        </page-content>
-      </page-grid>
-    )}
+    <a class="skip-link" href="#main-content">{t(locale, "skipLink")}</a>
+    <page-shell data-article={article || undefined}>
+      <page-nav>
+        <SiteBar crumbs={crumbs}
+          ><slot name="actions" slot="actions" /></SiteBar
+        >
+      </page-nav>
+      {Astro.slots.has("toc") && (
+        <page-toc><slot name="toc" /></page-toc>
+      )}
+      <main id="main-content"><slot /></main>
+      <page-footer><Footer /></page-footer>
+    </page-shell>
   </body>
 </html>
 
@@ -109,40 +97,31 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     transform: translateY(0);
   }
 
-  page-grid {
+  /* ---------- 侧栏模式：原 page-grid / page-content 的网格化重构 ---------- */
+  :root[data-layout="sidebar"] page-shell {
     position: relative;
     isolation: isolate;
+    z-index: 1;
     display: grid;
     grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
-    gap: var(--grid-gutter);
+    /* 原 gap: var(--grid-gutter)；行间距改由元素 margin 精确还原（保真） */
+    column-gap: var(--grid-gutter);
+    row-gap: 0;
     max-width: var(--grid-max-width);
     min-height: 100svh;
     margin-inline: auto;
     padding-inline: var(--grid-gutter);
     padding-block-start: var(--page-offset-top);
+    grid-template-rows: 1fr auto;
 
     @media (width < 64rem) {
       grid-template-columns: 1fr;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr auto;
       padding-block-start: 0;
     }
   }
 
-  page-header {
-    display: contents;
-
-    @media (width < 64rem) {
-      display: block;
-      grid-column: 1 / -1;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      min-width: 0;
-      margin-inline: calc(-1 * var(--grid-gutter));
-    }
-  }
-
-  page-nav {
+  :root[data-layout="sidebar"] page-nav {
     display: block;
     min-width: 0;
     grid-column: 1 / 3;
@@ -154,9 +133,19 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
       inset-inline-start: var(--grid-edge);
       width: calc(2 * var(--grid-column-width) + var(--grid-gutter));
     }
+
+    /* 原 page-header 的 <64rem 吸顶职责（全出血负 margin） */
+    @media (width < 64rem) {
+      grid-column: 1 / -1;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      margin-inline: calc(-1 * var(--grid-gutter));
+      margin-block-end: var(--grid-gutter);
+    }
   }
 
-  page-toc {
+  :root[data-layout="sidebar"] page-toc {
     display: block;
     min-width: 0;
     grid-column: 10 / 13;
@@ -168,40 +157,144 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
       inset-inline-end: var(--grid-edge);
       width: calc(3 * var(--grid-column-width) + 2 * var(--grid-gutter));
     }
-  }
 
-  page-content-topbar {
-    display: flex;
-    flex-direction: column;
-    max-width: 50rem;
-    margin-inline: auto;
-    padding-inline: var(--grid-gutter);
-    padding-block-start: var(--space-xl);
-
-    main {
-      flex: 1;
-      min-width: 0;
-    }
-
-    page-footer {
-      display: block;
-      margin-block-start: var(--space-xl);
-    }
-
-    &:has(page-toc) {
-      @media (width < 64rem) {
-        max-width: 50rem;
-      }
+    @media (width < 64rem) {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      position: sticky;
+      top: var(--bar-nav-height);
+      z-index: 9;
+      margin-inline: calc(-1 * var(--grid-gutter));
+      /* 紧贴导航条（抵消 page-nav 的下间距），条下保留原 header→内容 的栅格间距 */
+      margin-block-start: calc(-1 * var(--grid-gutter));
+      margin-block-end: var(--grid-gutter);
     }
   }
 
-  topbar-article {
-    display: flex;
-    gap: var(--space-l);
-    align-items: flex-start;
+  :root[data-layout="sidebar"] main {
+    min-width: 0;
+    grid-column: 3 / 10;
+    grid-row: 1;
+    margin-block-start: -0.1em;
 
-    page-toc {
-      flex-shrink: 0;
+    @media (width < 64rem) {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      inline-size: 100%;
+      max-inline-size: var(--measure);
+      margin-inline: auto;
+    }
+  }
+
+  :root[data-layout="sidebar"] page-footer {
+    display: block;
+    grid-column: 3 / 10;
+    grid-row: 2;
+    margin-block-start: var(--space-xl);
+
+    @media (width < 64rem) {
+      grid-column: 1 / -1;
+      grid-row: 4;
+      inline-size: 100%;
+      max-inline-size: var(--measure);
+      margin-inline: auto;
+    }
+  }
+
+  /* ---------- 顶栏模式：原 page-content-topbar 的网格化重构 ---------- */
+  :root[data-layout="topbar"] page-shell {
+    --topbar-measure: 50rem;
+    /* 内容列左缘：原 page-content-topbar 居中后内容盒的左右缩进
+       （= max(gutter, (100% − measure) / 2 + gutter)） */
+    --topbar-edge: max(
+      var(--grid-gutter),
+      (100% - var(--topbar-measure)) /
+      2 +
+      var(--grid-gutter)
+    );
+    position: relative;
+    z-index: 1;
+
+    @media (width >= 64rem) {
+      display: grid;
+      grid-template-columns:
+        minmax(var(--grid-gutter), 1fr)
+        14rem
+        minmax(
+          0,
+          calc(
+            min(var(--topbar-measure), 100%) -
+            2 *
+            var(--grid-gutter) -
+            14rem -
+            var(--space-l)
+          )
+        )
+        minmax(var(--grid-gutter), 1fr);
+      column-gap: var(--space-l);
+      grid-template-rows: auto auto auto;
+    }
+
+    /* <64rem：沿用原 page-content-topbar 的 flex 列语义（子项外边距不折叠） */
+    @media (width < 64rem) {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  /* 原 page-content-topbar[data-article]：≥64rem 用 80rem 内容列；
+     <64rem 由基础值 50rem 自然回落（与原 @media 内 50rem 回落同义） */
+  @media (width >= 64rem) {
+    :root[data-layout="topbar"] page-shell[data-article] {
+      --topbar-measure: 80rem;
+    }
+  }
+
+  /* 原 html[data-fullwidth] 规则：两种断点下均优先于文章加宽 */
+  :root[data-layout="topbar"][data-fullwidth] page-shell[data-article] {
+    --topbar-measure: 100%;
+  }
+
+  /* site-bar 直接作为网格第 1 行（page-nav 不产生盒子） */
+  :root[data-layout="topbar"] page-nav {
+    display: contents;
+  }
+
+  :root[data-layout="topbar"] main {
+    min-width: 0;
+    margin-block-start: var(--space-xl);
+
+    @media (width >= 64rem) {
+      grid-column: 2 / 4;
+      grid-row: 2;
+    }
+
+    @media (width < 64rem) {
+      /* 复刻原 flex 列语义：main 为 fit-content（available = 100% − 2×edge），
+         左右缘对齐内容列（旧 topbar-article 为 align-items: flex-start 的 flex 列） */
+      width: fit-content;
+      margin-inline: var(--topbar-edge);
+    }
+  }
+
+  :root[data-layout="topbar"] page-shell:has(> page-toc) main {
+    @media (width >= 64rem) {
+      grid-column: 3;
+    }
+
+    @media (width < 64rem) {
+      margin-block-start: var(--space-l);
+    }
+  }
+
+  :root[data-layout="topbar"] page-toc {
+    display: block;
+    margin-block-start: var(--space-xl);
+
+    @media (width >= 64rem) {
+      grid-column: 2;
+      grid-row: 2;
+      align-self: start;
       width: 14rem;
       position: sticky;
       top: calc(var(--space-2xs) + 2rem + var(--space-m));
@@ -216,54 +309,28 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     }
 
     @media (width < 64rem) {
-      flex-direction: column;
-
-      page-toc {
-        width: 100%;
-        position: static;
-        max-height: none;
-        overflow-y: visible;
-      }
+      position: static;
+      max-height: none;
+      overflow: visible;
+      /* 原 <64rem 的 page-toc 为 width: 100%：拉伸至内容列（100% − 2×edge） */
+      margin-inline: var(--topbar-edge);
+      /* 与 main 的间距由 main 的 margin-block-start: var(--space-l) 承担（flex 下不折叠） */
     }
   }
 
-  html[data-fullwidth] {
-    page-content-topbar:has(page-toc) {
-      max-width: 100%;
-    }
-  }
+  :root[data-layout="topbar"] page-footer {
+    display: block;
+    margin-block-start: var(--space-xl);
 
-  page-content {
-    display: flex;
-    flex-direction: column;
-    grid-column: 3 / 10;
-    grid-row: 1;
-    min-width: 0;
-    margin-block-start: -0.1em;
-
-    main {
-      flex: 1;
-    }
-
-    page-footer {
-      display: block;
-      margin-block-start: var(--space-xl);
+    @media (width >= 64rem) {
+      grid-column: 2 / 4;
+      grid-row: 3;
     }
 
     @media (width < 64rem) {
-      grid-column: 1 / -1;
-      grid-row: auto;
-      inline-size: 100%;
-      max-inline-size: var(--measure);
-      margin-inline: auto;
+      /* 原页面页脚为块级满宽：拉伸至内容列（100% − 2×edge） */
+      margin-inline: var(--topbar-edge);
     }
-  }
-
-  /* Ensure content sits above the background pseudo-element */
-  page-grid,
-  page-content-topbar {
-    position: relative;
-    z-index: 1;
   }
 
   body::before {

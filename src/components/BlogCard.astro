@@ -1,22 +1,44 @@
 ---
+import type { PostView } from "@/lib/content"
+import { localeFromPath, localePath, t, type Locale } from "@/lib/i18n"
 import { formatDate } from "@/lib/utils"
 import { Image } from "astro:assets"
 import { getEntries, type CollectionEntry } from "astro:content"
 
-type Props = { post: CollectionEntry<"blog"> }
+type Props = {
+  post: CollectionEntry<"blog"> | PostView
+  /** 渲染语言覆盖：默认按当前页面路径推断；跨语言列卡片时显式传入
+   *（如作者页列英文译作） */
+  locale?: Locale
+  /** 徽章文案覆盖：默认仅未翻译条目显示「尚未翻译」；传入时按传入值渲染 */
+  badge?: string
+}
 
 const { post } = Astro.props
-const authors = await getEntries(post.data.authors)
+const view: PostView =
+  "translated" in post
+    ? post
+    : { id: post.id, data: post.data, translated: true, zh: post }
+
+const locale = Astro.props.locale ?? localeFromPath(Astro.url.pathname)
+const href = localePath(`/blog/${view.id}`, locale)
+const authors = await getEntries(view.data.authors)
+const badge =
+  Astro.props.badge ??
+  (!view.translated ? t(locale, "untranslatedBadge") : undefined)
 ---
 
 <li>
-  {post.data.image && (
-      <a href={`/blog/${post.id}`} tabindex="-1" aria-hidden="true">
-        <Image src={post.data.image} alt="" width={640} height={336} />
+  {view.data.image && (
+      <a href={href} tabindex="-1" aria-hidden="true">
+        <Image src={view.data.image} alt="" width={640} height={336} />
       </a>
     )}
   <entry-info>
-    <a href={`/blog/${post.id}`}>{post.data.title}</a>
+    <entry-head>
+      <a href={href}>{view.data.title}</a>
+      {badge && <entry-badge>{badge}</entry-badge>}
+    </entry-head>
     <entry-meta>
       {authors.length > 0 && (
           <entry-authors>
@@ -37,18 +59,18 @@ const authors = await getEntries(post.data.authors)
             </author-names>
           </entry-authors>
         )}
-      <time datetime={post.data.date.toISOString()}
-        >{formatDate(post.data.date)}</time
+      <time datetime={view.data.date.toISOString()}
+        >{formatDate(view.data.date, locale)}</time
       >
-      {post.data.tags && (
+      {view.data.tags && (
           <entry-tags>
-            {post.data.tags.map((tag) => (
+            {view.data.tags.map((tag) => (
               <a href={`/tags/${tag}`}>#{tag}</a>
             ))}
           </entry-tags>
         )}
     </entry-meta>
-    <p>{post.data.description}</p>
+    <p>{view.data.description}</p>
   </entry-info>
 </li>
 
@@ -72,10 +94,28 @@ const authors = await getEntries(post.data.authors)
       display: flex;
       flex-direction: column;
 
-      > a {
-        font-size: var(--step-1);
-        line-height: calc(var(--leading-offset) + 1em);
-        font-weight: var(--font-weight-medium);
+      entry-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-3xs) var(--space-2xs);
+
+        > a {
+          font-size: var(--step-1);
+          line-height: calc(var(--leading-offset) + 1em);
+          font-weight: var(--font-weight-medium);
+        }
+
+        entry-badge {
+          flex-shrink: 0;
+          padding-inline: var(--space-2xs);
+          font-size: var(--step--1);
+          line-height: 1.5;
+          white-space: nowrap;
+          color: var(--muted-foreground);
+          background-color: color-mix(in oklab, var(--muted) 50%, transparent);
+          border-radius: var(--radius-full);
+        }
       }
 
       entry-meta {

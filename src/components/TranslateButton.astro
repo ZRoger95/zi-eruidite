@@ -1,0 +1,246 @@
+---
+type Props = { postId: string }
+
+const { postId } = Astro.props
+
+if (import.meta.env.PROD) return
+---
+
+<div class="translate-dev" data-translate-dev data-post-id={postId}>
+  <div class="panel" hidden>
+    <p class="message" role="status" aria-live="polite"></p>
+    <div class="actions"></div>
+  </div>
+  <button type="button" class="trigger">翻译成英文</button>
+</div>
+
+<style>
+  .translate-dev {
+    position: fixed;
+    inset-block-end: var(--grid-gutter);
+    inset-inline-end: var(--grid-gutter);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-3xs);
+
+    @media (width < 64rem) {
+      inset-block-end: calc(var(--grid-gutter) + 2.5rem + var(--space-2xs));
+    }
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    max-width: min(22rem, calc(100vw - 2 * var(--grid-gutter)));
+    padding: var(--space-xs);
+    background-color: color-mix(in oklab, var(--background) 90%, transparent);
+    backdrop-filter: blur(var(--blur-sm));
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-xl);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .message {
+    font-size: var(--step--1);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2xs);
+  }
+
+  /* :global() —— 动作控件由脚本运行时创建，不带 scope 属性 */
+  .actions :global(button),
+  .actions :global(a) {
+    padding: var(--space-3xs) var(--space-2xs);
+    font-size: var(--step--1);
+    color: var(--foreground);
+    background-color: color-mix(in oklab, var(--muted) 40%, transparent);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+
+  .actions :global(button:hover),
+  .actions :global(a:hover) {
+    background-color: color-mix(in oklab, var(--muted) 70%, transparent);
+  }
+
+  .trigger {
+    padding: var(--space-3xs) var(--space-xs);
+    font-size: var(--step--1);
+    color: var(--foreground);
+    background-color: color-mix(in oklab, var(--background) 90%, transparent);
+    backdrop-filter: blur(var(--blur-sm));
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+
+  .trigger:hover:not(:disabled) {
+    background-color: color-mix(in oklab, var(--muted) 50%, transparent);
+  }
+
+  .trigger:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+</style>
+
+<script>
+  ;(() => {
+    const root = document.querySelector<HTMLElement>("[data-translate-dev]")
+    if (!root) return
+
+    const postId = root.dataset.postId
+    if (!postId) return
+
+    const panel = root.querySelector<HTMLElement>(".panel")!
+    const message = root.querySelector<HTMLElement>(".message")!
+    const actions = root.querySelector<HTMLElement>(".actions")!
+    const trigger = root.querySelector<HTMLButtonElement>(".trigger")!
+
+    let viewUrl = ""
+    let lastForce = false
+
+    const close = () => {
+      panel.hidden = true
+    }
+
+    const show = (text: string) => {
+      message.textContent = text
+      panel.hidden = false
+    }
+
+    const addButton = (label: string, onClick: () => void) => {
+      const button = document.createElement("button")
+      button.type = "button"
+      button.textContent = label
+      button.addEventListener("click", onClick)
+      actions.append(button)
+    }
+
+    const addLink = (label: string, href: string) => {
+      const link = document.createElement("a")
+      link.textContent = label
+      link.href = href
+      actions.append(link)
+    }
+
+    const run = async (force: boolean) => {
+      lastForce = force
+      trigger.disabled = true
+      actions.replaceChildren()
+      show("翻译中…")
+
+      let data: { ok?: boolean; error?: string } = {}
+      let ok = false
+      try {
+        const response = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: postId, force }),
+        })
+        data = await response.json().catch(() => ({}))
+        ok = response.ok && data.ok === true
+      } catch {
+        ok = false
+      }
+
+      if (ok) {
+        show("✓ 翻译完成")
+        addLink("查看英文版", viewUrl)
+      } else {
+        show(`✗ ${data.error ?? "翻译失败"}`)
+        addButton("重试", () => run(lastForce))
+      }
+      trigger.disabled = false
+    }
+
+    const check = async () => {
+      actions.replaceChildren()
+      message.textContent = ""
+
+      let data: {
+        error?: string
+        kind?: string
+        total?: number
+        translated?: number
+        viewUrl?: string
+        running?: boolean
+      } = {}
+      let ok = false
+      try {
+        const response = await fetch(
+          `/api/translate/status?id=${encodeURIComponent(postId)}`,
+        )
+        data = await response.json().catch(() => ({}))
+        ok = response.ok
+      } catch {
+        ok = false
+      }
+
+      if (!ok) {
+        show(data.error ?? "状态检测失败")
+        addButton("关闭", close)
+        return
+      }
+
+      viewUrl = data.viewUrl ?? ""
+      const total = data.total ?? 0
+      const translated = data.translated ?? 0
+
+      if (data.running === true) {
+        show("已有翻译进行中（可在终端查看）。")
+        addButton("关闭", close)
+        return
+      }
+
+      if (translated === 0) {
+        show(
+          data.kind === "series"
+            ? `尚未翻译（本系列共 ${total} 篇）。生成译文？`
+            : "尚未翻译。生成译文？",
+        )
+        addButton("生成", () => run(false))
+        addButton("取消", close)
+        return
+      }
+
+      if (translated < total) {
+        show(`已有 ${translated}/${total} 篇译文。继续翻译缺失部分？`)
+        addButton("继续（跳过已有）", () => run(false))
+        addButton("全部覆盖", () => run(true))
+        addLink("查看", viewUrl)
+        addButton("取消", close)
+        return
+      }
+
+      show("已有译文。")
+      addButton("覆盖翻译", () => run(true))
+      addLink("查看", viewUrl)
+      addButton("取消", close)
+    }
+
+    trigger.addEventListener("click", check)
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") close()
+    })
+
+    document.addEventListener("click", (event) => {
+      const target = event.target
+      if (target instanceof Element && target.closest("[data-translate-dev]")) {
+        return
+      }
+      close()
+    })
+  })()
+</script>

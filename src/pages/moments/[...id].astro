@@ -4,6 +4,7 @@ import Layout from "@/layouts/Layout.astro"
 import { getMoments, pageTitle } from "@/lib/content"
 import { getEntry, type CollectionEntry } from "astro:content"
 import { SITE } from "@/consts"
+import { localeFromPath, SITE_META } from "@/lib/i18n"
 
 export async function getStaticPaths() {
   const moments = await getMoments()
@@ -16,6 +17,7 @@ export async function getStaticPaths() {
 type Props = { moment: CollectionEntry<"moments"> }
 
 const { moment } = Astro.props
+const locale = localeFromPath(Astro.url.pathname)
 
 const dateStr = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
@@ -46,7 +48,7 @@ const description = descMatch
     <meta property="og:type" content="article">
     <meta property="og:url" content={canonical}>
     <meta property="og:site_name" content={SITE.title}>
-    <meta property="og:locale" content={SITE.locale.replace("-", "_")}>
+    <meta property="og:locale" content={SITE_META[locale].ogLocale}>
     <meta property="og:image" content={ogImage}>
     <meta property="og:image:alt" content={`动态 · ${dateStr}`}>
     <meta name="twitter:card" content="summary_large_image">

@@ -1,0 +1,305 @@
+---
+import { pageTitle, type PostView } from "@/lib/content"
+import { localePath, t, type Locale } from "@/lib/i18n"
+import { formatDate, subpostSlug } from "@/lib/utils"
+import { Image } from "astro:assets"
+import type { CollectionEntry } from "astro:content"
+import type { AstroComponentFactory } from "astro/runtime/server/index.js"
+
+type ChainItem = {
+  view: PostView
+  /** 已翻译条目的 render() 结果；未翻译条目省略 */
+  Content?: AstroComponentFactory
+  authors: CollectionEntry<"authors">[]
+}
+type Props = { locale: Locale; currentId: string; items: ChainItem[] }
+
+const { locale, currentId, items } = Astro.props
+---
+
+{items.map(({ view, Content, authors }, i) => (
+  <article
+    id={i === 0 ? undefined : subpostSlug(view.id)}
+    data-url={localePath(`/blog/${view.id}`, locale)}
+    data-title={pageTitle(view.data.title)}
+    data-embedded={i > 0 || undefined}
+    data-article={true}
+  >
+    {view.translated && Content ? (
+      <>
+        {view.data.image && (
+          <post-banner>
+            <Image
+              src={view.data.image}
+              alt={view.data.title}
+              width={1200}
+              height={630}
+              priority={view.id === currentId || undefined}
+            />
+          </post-banner>
+        )}
+        <header>
+          <h1>{view.data.title}</h1>
+          {view.en?.data.aiTranslated && (
+            <ai-translated-badge>{t(locale, "aiTranslated")}</ai-translated-badge>
+          )}
+          <post-meta>
+            {authors.length > 0 && (
+              <post-authors>
+                <author-avatars>
+                  {authors.map((author) => (
+                    <img
+                      src={author.data.avatar}
+                      alt={author.data.name}
+                      width="18"
+                      height="18"
+                    />
+                  ))}
+                </author-avatars>
+                <author-names>
+                  {authors.map((author, j) => (
+                    <>{j > 0 && ", "}<a href={`/authors/${author.id}`}>{author.data.name}</a></>
+                  ))}
+                </author-names>
+              </post-authors>
+            )}
+            <time datetime={view.data.date.toISOString()}
+              >{formatDate(view.data.date, locale)}</time
+            >
+            {view.data.tags && (
+              <post-tags>
+                {view.data.tags.map((tag) => (
+                  <a href={`/tags/${tag}`}>#{tag}</a>
+                ))}
+              </post-tags>
+            )}
+          </post-meta>
+          <p>{view.data.description}</p>
+        </header>
+        <prose-content>
+          <Content />
+        </prose-content>
+      </>
+    ) : (
+      <untranslated-section data-untranslated>
+        <header>
+          <h1>{view.data.title}</h1>
+        </header>
+        <p>{t(locale, "sectionUntranslated")}</p>
+        <a href={`/blog/${view.id}`}>{t(locale, "readOriginal")}</a>
+      </untranslated-section>
+    )}
+  </article>
+))}
+
+<style>
+  article[data-embedded] {
+    margin-block-start: var(--space-xl);
+    padding-block-start: var(--space-xl);
+    border-block-start: 2px solid var(--border);
+    scroll-margin-block-start: calc(-2px - 0.2 * var(--step-2));
+
+    header h1 {
+      font-size: var(--step-2);
+    }
+  }
+
+  /* 单 DOM：banner 固定为首个子元素（顶栏的视觉顺序）；
+     侧栏用 order 还原 header → banner → prose 的视觉顺序 */
+  article[data-article] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  :root[data-layout="sidebar"] article[data-article] {
+    post-banner {
+      order: 1;
+    }
+
+    prose-content {
+      order: 2;
+    }
+  }
+
+  /* flex 容器内相邻兄弟外边距不再塌陷：块布局下「prose 首可见元素上边距 ↔
+     前一兄弟（banner/header）下边距 --space-m」会塌陷为 max()，flex 下则相加。
+     将首可见元素上边距改为 max(0, 原值 − --space-m)，相加后即与原塌陷结果等价。
+     :nth-child(1 of :not(style, script)) 跳过不生成盒子的元素，取首个可见元素；
+     :not(:first-child) 守卫只修正「被无盒元素顶离 first-child」者（真正的
+     :first-child 已被 typography.css 的 > :first-child 清零，无需再补偿）。
+     数值取自真实样式：标题 1.5em（typography-headings.css）、hr 与 .footnotes
+     均为 var(--space-l)（typography-block.css）；prose 其余块级元素上边距为 0
+     （typography.css 的 :where(...) 规则），无需覆盖。 */
+  article[data-article]
+  :global(
+    prose-content
+      > :nth-child(1 of :not(style, script)):not(:first-child):is(
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6
+      )
+  ) {
+    margin-block-start: max(0px, calc(1.5em - var(--space-m)));
+  }
+
+  article[data-article]
+    :global(
+      prose-content
+        > :nth-child(1 of :not(style, script)):not(:first-child):is(
+          hr,
+          .footnotes
+        )
+    ) {
+    margin-block-start: max(0px, calc(var(--space-l) - var(--space-m)));
+  }
+
+  header {
+    margin-block-end: var(--space-m);
+
+    h1 {
+      font-size: var(--step-3);
+      line-height: calc(var(--leading-offset) + 1em);
+      font-weight: var(--font-weight-medium);
+    }
+
+    ai-translated-badge {
+      display: inline-block;
+      margin-block-start: var(--space-3xs);
+      padding-inline: var(--space-2xs);
+      font-size: var(--step--1);
+      line-height: 1.5;
+      color: var(--muted-foreground);
+      background-color: color-mix(in oklab, var(--muted) 50%, transparent);
+      border-radius: var(--radius-full);
+    }
+
+    post-meta {
+      --underline: var(--muted-foreground);
+
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-3xs);
+      margin-block-start: var(--space-3xs);
+      font-size: var(--step--1);
+      color: var(--muted-foreground);
+
+      post-authors {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3xs);
+
+        author-avatars {
+          display: flex;
+          margin-block-end: -0.1em;
+
+          img {
+            border-radius: var(--radius-full);
+            box-shadow: 0 0 0 1.5px var(--background);
+
+            &:not(:first-child) {
+              margin-inline-start: -0.375rem;
+            }
+          }
+        }
+      }
+
+      post-authors ~ time::before {
+        content: "·";
+        margin-inline-end: var(--space-3xs);
+      }
+
+      post-tags {
+        --underline: transparent;
+
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3xs);
+
+        a {
+          color: color-mix(in oklab, var(--muted-foreground) 50%, transparent);
+
+          &:hover {
+            color: var(--foreground);
+          }
+        }
+      }
+
+      time ~ post-tags::before {
+        content: "·";
+      }
+
+      a {
+        color: var(--foreground);
+      }
+    }
+
+    > p {
+      margin-block-start: var(--space-2xs);
+      font-size: var(--step--1);
+      color: var(--muted-foreground);
+    }
+  }
+
+  post-banner {
+    display: block;
+    margin-block-end: var(--space-m);
+
+    :global(img) {
+      inline-size: 100%;
+      block-size: auto;
+    }
+  }
+
+  untranslated-section {
+    display: block;
+    padding: var(--space-m);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    color: var(--muted-foreground);
+
+    p {
+      margin-block-start: var(--space-2xs);
+    }
+
+    a {
+      display: inline-block;
+      margin-block-start: var(--space-2xs);
+      color: var(--foreground);
+    }
+  }
+
+  :root[data-layout="topbar"] article[data-article] {
+    header {
+      text-align: center;
+
+      post-meta {
+        justify-content: center;
+      }
+    }
+
+    post-banner {
+      margin-block-end: var(--space-m);
+    }
+
+    /* flex 项的 cross 轴 auto 外边距会抑制 stretch：仅靠 max-width +
+       margin-inline: auto 时，短内容（如未翻译占位）会收缩为 fit-content。
+       显式 width: 100% 复刻块布局下 width: auto 的「满宽 + 限宽居中」行为。 */
+    prose-content,
+    untranslated-section {
+      display: block;
+      width: 100%;
+      max-width: var(--measure);
+      margin-inline: auto;
+    }
+  }
+
+  :root[data-layout="topbar"][data-fullwidth]
+    article[data-article]
+    prose-content {
+    max-width: 100%;
+  }
+</style>

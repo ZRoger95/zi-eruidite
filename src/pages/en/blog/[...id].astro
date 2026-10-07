@@ -1,0 +1,156 @@
+---
+import MetaPage from "@/components/MetaPage.astro"
+import MetaPost from "@/components/MetaPost.astro"
+import PostActions from "@/components/PostActions.astro"
+import PostChain from "@/components/PostChain.astro"
+import ScrollToTop from "@/components/ScrollToTop.astro"
+import SeriesReader from "@/components/SeriesReader.astro"
+import TableOfContents from "@/components/TableOfContents.astro"
+import Layout from "@/layouts/Layout.astro"
+import { getPostViews, getSubpostViews, type PostView } from "@/lib/content"
+import { localePath, t } from "@/lib/i18n"
+import { isSubpost, subpostSlug } from "@/lib/utils"
+import type { MarkdownHeading } from "astro"
+import { getEntries, render, type CollectionEntry } from "astro:content"
+import type { AstroComponentFactory } from "astro/runtime/server/index.js"
+
+export async function getStaticPaths() {
+  const views = await getPostViews("en")
+  const series = await getSubpostViews("en")
+  return views.flatMap((parent, i) => {
+    const chain = [parent, ...(series.get(parent.id) ?? [])]
+    return chain.map((view) => ({
+      params: { id: view.id },
+      props: { view, chain, prev: views[i + 1], next: views[i - 1] },
+    }))
+  })
+}
+
+type Props = {
+  view: PostView
+  chain: PostView[]
+  prev?: PostView
+  next?: PostView
+}
+
+const { view, chain, prev, next } = Astro.props
+const [parent] = chain
+const locale = "en" as const
+
+/** 全链无任何已翻译节点 → 该系列所有 URL 统一渲染提示页。 */
+const untranslatedOnly = !chain.some((item) => item.translated)
+
+// 仅当当前 URL 节点存在非 draft 英文译文时输出 hreflang 配对
+const alternates = view.translated
+  ? { zh: `/blog/${view.id}`, en: `/en/blog/${view.id}` }
+  : undefined
+
+const rendered = await Promise.all(
+  chain.map(async (item) => {
+    const en = item.en
+    if (!en) {
+      return {
+        view: item,
+        Content: undefined as AstroComponentFactory | undefined,
+        headings: [] as MarkdownHeading[],
+        authors: [] as CollectionEntry<"authors">[],
+      }
+    }
+    const [{ Content, headings }, authors] = await Promise.all([
+      render(en),
+      getEntries(item.data.authors),
+    ])
+    return { view: item, Content, headings, authors }
+  }),
+)
+
+const sections = rendered.map(({ view: item, headings }, i) => ({
+  id: i === 0 ? undefined : subpostSlug(item.id),
+  label: item.data.title,
+  open: item.id === view.id,
+  headings: headings.filter(
+    ({ depth, text }) => depth >= 2 && depth <= 4 && text.trim(),
+  ),
+}))
+const hasToc =
+  sections.length > 1 || sections.some(({ headings }) => headings.length > 0)
+
+const crumbs = [
+  {
+    label: parent.data.title,
+    href: localePath(`/blog/${parent.id}`, locale),
+  },
+]
+if (isSubpost(view.id)) {
+  crumbs.push({
+    label: view.data.title,
+    href: localePath(`/blog/${view.id}`, locale),
+  })
+}
+---
+
+{untranslatedOnly ? (
+  <Layout>
+    <MetaPage
+      slot="head"
+      title={view.data.title}
+      noindex
+      follow
+      canonical={`/blog/${view.id}`}
+    />
+    <untranslated-notice>
+      <h1>{view.data.title}</h1>
+      <p>{t(locale, "noticeBody")}</p>
+      <a href={`/blog/${view.id}`}>{t(locale, "readOriginal")}</a>
+    </untranslated-notice>
+  </Layout>
+) : (
+  <Layout crumbs={crumbs} article>
+    <MetaPost
+      slot="head"
+      post={view.en ?? view.zh}
+      canonical={isSubpost(view.id)
+        ? localePath(`/blog/${parent.id}`, locale)
+        : undefined}
+      alternates={alternates}
+    />
+    {hasToc && (
+      <TableOfContents
+        slot="toc"
+        title={parent.data.title}
+        sections={sections}
+      />
+    )}
+    <PostActions slot="actions" prev={prev} next={next} />
+    <ScrollToTop floating />
+    <PostChain locale={locale} currentId={view.id} items={rendered} />
+    {chain.length > 1 && <SeriesReader />}
+  </Layout>
+)}
+
+<style>
+  untranslated-notice {
+    display: block;
+    padding: var(--space-m);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    color: var(--muted-foreground);
+
+    h1 {
+      font-size: var(--step-3);
+      line-height: calc(var(--leading-offset) + 1em);
+      font-weight: var(--font-weight-medium);
+      color: var(--foreground);
+    }
+
+    p {
+      margin-block-start: var(--space-2xs);
+    }
+
+    a {
+      display: inline-block;
+      margin-block-start: var(--space-2xs);
+      color: var(--foreground);
+    }
+  }
+</style>

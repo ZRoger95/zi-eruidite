@@ -2,32 +2,38 @@
 import ArrowLeft from "@/assets/icons/arrow-left.svg"
 import ArrowRight from "@/assets/icons/arrow-right.svg"
 import ScrollToTop from "@/components/ScrollToTop.astro"
+import type { PostView } from "@/lib/content"
+import { localeFromPath, localePath, t } from "@/lib/i18n"
 import type { CollectionEntry } from "astro:content"
 
-type Post = CollectionEntry<"blog">
-type Props = { prev?: Post; next?: Post }
+/** zh 文章页传 CollectionEntry，en 文章页传 PostView（id 均为 baseId）。 */
+type PostLike = CollectionEntry<"blog"> | PostView
+type Props = { prev?: PostLike; next?: PostLike }
 
 const { prev, next } = Astro.props
+const locale = localeFromPath(Astro.url.pathname)
+const postHref = (post?: PostLike) =>
+  post && localePath(`/blog/${post.id}`, locale)
 ---
 
 <post-actions>
   <a
-    href={prev && `/blog/${prev.id}`}
+    href={postHref(prev)}
     data-icon-button
     data-dir="prev"
-    aria-label={prev && `Previous post: ${prev.data.title}`}
+    aria-label={prev && `${t(locale, "prevPost")}: ${prev.data.title}`}
     aria-hidden={!prev || undefined}
-    title={prev?.data.title}
+    title={prev && `${t(locale, "prevPost")}: ${prev.data.title}`}
   >
     <ArrowLeft />
   </a>
   <a
-    href={next && `/blog/${next.id}`}
+    href={postHref(next)}
     data-icon-button
     data-dir="next"
-    aria-label={next && `Next post: ${next.data.title}`}
+    aria-label={next && `${t(locale, "nextPost")}: ${next.data.title}`}
     aria-hidden={!next || undefined}
-    title={next?.data.title}
+    title={next && `${t(locale, "nextPost")}: ${next.data.title}`}
   >
     <ArrowRight />
   </a>

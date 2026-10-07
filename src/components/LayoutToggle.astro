@@ -1,0 +1,43 @@
+---
+import SidebarIcon from "@/assets/icons/layout-sidebar.svg"
+import TopbarIcon from "@/assets/icons/layout-topbar.svg"
+import { localeFromPath, t } from "@/lib/i18n"
+
+const locale = localeFromPath(Astro.url.pathname)
+---
+
+<button
+  id="layout-toggle"
+  data-icon-button
+  aria-label={t(locale, "layoutToggle")}
+>
+  <sidebar-icon><SidebarIcon /></sidebar-icon>
+  <topbar-icon><TopbarIcon /></topbar-icon>
+</button>
+
+<style is:global>
+  topbar-icon {
+    display: none;
+  }
+
+  :root[data-layout="topbar"] {
+    sidebar-icon {
+      display: none;
+    }
+
+    topbar-icon {
+      display: inline;
+    }
+  }
+</style>
+
+<script>
+  const button = document.getElementById("layout-toggle")
+  if (button)
+    button.onclick = () => {
+      const root = document.documentElement
+      const next = root.dataset.layout === "topbar" ? "sidebar" : "topbar"
+      root.dataset.layout = next
+      localStorage.layout = next
+    }
+</script>

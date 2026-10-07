@@ -1,0 +1,408 @@
+---
+import Logo from "@/assets/logo.svg"
+import LanguageSwitch from "@/components/LanguageSwitch.astro"
+import LayoutToggle from "@/components/LayoutToggle.astro"
+import ThemeToggle from "@/components/ThemeToggle.astro"
+import { NAVIGATION, SITE } from "@/consts"
+import { localeFromPath, localePath, stripLocalePath, t } from "@/lib/i18n"
+import { normalizePath } from "@/lib/utils"
+
+type Props = { crumbs?: { label: string; href: string }[] }
+
+const { crumbs = [] } = Astro.props
+const pathname = normalizePath(Astro.url.pathname) || "/"
+const locale = localeFromPath(pathname)
+const stripped = stripLocalePath(pathname)
+const navItems = NAVIGATION.map((item) => ({
+  key: item.key,
+  href: item.bilingual ? localePath(item.href, locale) : item.href,
+  sectionHref: item.href,
+}))
+const section = navItems.find(
+  ({ sectionHref }) =>
+    stripped === sectionHref || stripped.startsWith(`${sectionHref}/`),
+)
+const isArticle = stripped.startsWith("/blog/") && stripped !== "/blog/"
+---
+
+<site-bar>
+  <bar-inner>
+    <bar-brand>
+      <a href={localePath("/", locale)} aria-label={SITE.title}>
+        <Logo />
+        <span>{SITE.title}</span>
+      </a>
+    </bar-brand>
+    <nav>
+      <ul>
+        {navItems.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              aria-current={pathname === item.href ? "page" : undefined}
+              >{t(locale, item.key)}</a
+            >
+            {item === section &&
+              crumbs.length > 0 &&
+              stripped !== item.sectionHref && (
+                <ul>
+                  {crumbs.map((crumb, i) => (
+                    <li data-depth={i ? 1 : undefined} data-crumb>
+                      <a
+                        href={crumb.href}
+                        aria-current={
+                          i === crumbs.length - 1 ? "page" : undefined
+                        }
+                      >
+                        {crumb.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+          </li>
+        ))}
+        {!section &&
+          crumbs.map((crumb, i) => (
+            <li data-depth={i ? 1 : undefined} data-crumb>
+              <a
+                href={crumb.href}
+                aria-current={i === crumbs.length - 1 ? "page" : undefined}
+              >
+                {crumb.label}
+              </a>
+            </li>
+          ))}
+      </ul>
+    </nav>
+  </bar-inner>
+  <bar-actions>
+    <ThemeToggle />
+    <LanguageSwitch />
+    <LayoutToggle />
+    {isArticle && (
+      <button
+        id="fullwidth-toggle"
+        aria-label={t(locale, "fullwidthToggle")}
+        title={t(locale, "fullwidthToggle")}
+      >
+        <svg
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline class="expand" points="10,2 14,2 14,6" />
+          <polyline class="expand" points="6,14 2,14 2,10" />
+          <polyline class="collapse" points="14,10 14,14 10,14" />
+          <polyline class="collapse" points="2,6 2,2 6,2" />
+        </svg>
+      </button>
+    )}
+    <slot name="actions" />
+  </bar-actions>
+</site-bar>
+
+<script>
+  const bar = document.querySelector("site-bar")
+  if (bar) {
+    const sentinel = document.createElement("div")
+    sentinel.style.cssText =
+      "position:absolute;top:0;left:0;width:100%;height:1px;pointer-events:none"
+    bar.insertAdjacentElement("afterend", sentinel)
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        bar.classList.toggle("is-scrolled", !entry.isIntersecting)
+      },
+      { rootMargin: "1px 0px 0px 0px" },
+    )
+    observer.observe(sentinel)
+  }
+
+  // Full-width toggle
+  const FULLWIDTH_KEY = "topbar-fullwidth"
+  const toggle = document.getElementById("fullwidth-toggle")
+  if (toggle) {
+    const apply = (on: boolean) => {
+      document.documentElement.toggleAttribute("data-fullwidth", on)
+      toggle.classList.toggle("is-active", on)
+    }
+    // Restore saved preference
+    apply(localStorage.getItem(FULLWIDTH_KEY) === "true")
+
+    toggle.addEventListener("click", () => {
+      const next = !document.documentElement.hasAttribute("data-fullwidth")
+      apply(next)
+      localStorage.setItem(FULLWIDTH_KEY, String(next))
+    })
+  }
+</script>
+
+<style>
+  /* ---------- 侧栏模式：原 Sidebar.astro 的 aside / sidebar-inner / … 声明 ---------- */
+  :root[data-layout="sidebar"] site-bar {
+    position: sticky;
+    top: var(--page-offset-top);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: calc(100svh - var(--page-offset-top) - var(--page-offset-bottom));
+
+    @media (width < 64rem) {
+      position: static;
+      height: auto;
+      flex-direction: row;
+      align-items: center;
+      gap: var(--space-s);
+      /* 原 bar.css 的 [data-bar] <64rem 声明（site-bar 本身不再带 data-bar） */
+      padding-block: var(--space-2xs);
+      padding-inline: var(--bar-gutter);
+      background-color: color-mix(in oklab, var(--background) 90%, transparent);
+      backdrop-filter: blur(var(--blur-sm));
+      border-block-end: 2px solid var(--border);
+      border-image: var(--bar-border-image);
+    }
+  }
+
+  :root[data-layout="sidebar"] bar-inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+
+    @media (width < 64rem) {
+      flex: 1;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  /* 旧 Sidebar 中品牌 <a> 是 flex 直接子项；去掉包装层，避免行盒改变品牌项高度 */
+  :root[data-layout="sidebar"] bar-brand {
+    display: contents;
+  }
+
+  :root[data-layout="sidebar"] bar-brand a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+    font-weight: var(--font-weight-medium);
+    font-size: var(--step-0);
+    color: var(--foreground);
+    text-decoration-line: none;
+
+    svg {
+      inline-size: 1.125rem;
+      block-size: 1.125rem;
+      flex-shrink: 0;
+    }
+
+    @media (width < 26rem) {
+      span {
+        display: none;
+      }
+    }
+  }
+
+  :root[data-layout="sidebar"] nav ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3xs);
+
+    a {
+      display: block;
+      color: var(--muted-foreground);
+
+      &:hover,
+      &[aria-current="page"] {
+        color: var(--foreground);
+      }
+    }
+
+    li[data-depth="1"] a {
+      margin-inline-start: var(--space-xs);
+    }
+
+    ul {
+      margin-block-start: var(--space-3xs);
+
+      a {
+        margin-inline-start: var(--space-xs);
+      }
+
+      li[data-depth="1"] a {
+        margin-inline-start: calc(2 * var(--space-xs));
+      }
+    }
+
+    @media (width < 64rem) {
+      flex-direction: row;
+      align-items: center;
+      gap: var(--space-s);
+
+      ul {
+        display: none;
+      }
+    }
+  }
+
+  :root[data-layout="sidebar"] nav li:has(> ul) > a {
+    @media (width < 64rem) {
+      color: var(--foreground);
+    }
+  }
+
+  :root[data-layout="sidebar"] bar-actions {
+    display: flex;
+    align-items: center;
+    margin-inline-start: -0.5rem;
+
+    @media (width >= 64rem) {
+      margin-block-start: auto;
+    }
+
+    @media (width < 64rem) {
+      margin-inline-start: 0;
+      margin-inline-end: -0.5rem;
+    }
+  }
+
+  /* ---------- 顶栏模式：原 Topbar.astro 的 header / topbar-inner / … 声明 ---------- */
+  :root[data-layout="topbar"] site-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* 原 topbar-inner 的 50rem 居中：全宽条以对称内边距收窄内容行 */
+    padding-inline: max(
+      var(--grid-gutter),
+      (100% - 50rem) /
+      2 +
+      var(--grid-gutter)
+    );
+    padding-block: var(--space-2xs);
+    background-color: color-mix(in oklab, var(--background) 90%, transparent);
+    backdrop-filter: blur(var(--blur-sm));
+    transition: border-color 0.2s;
+    border-block-end: 1px solid transparent;
+
+    /* page-nav 为 display: contents，site-bar 直接作为 page-shell 的网格项 */
+    @media (width >= 64rem) {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+  }
+
+  :root[data-layout="topbar"] site-bar.is-scrolled {
+    border-block-end-color: color-mix(in oklab, var(--border) 60%, transparent);
+  }
+
+  /* 品牌/导航作为 site-bar 行的直接 flex 项（对应原 topbar-inner 的单行分配） */
+  :root[data-layout="topbar"] bar-inner {
+    display: contents;
+  }
+
+  :root[data-layout="topbar"] bar-brand a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: var(--font-weight-medium);
+    font-size: var(--step-0);
+    color: var(--foreground);
+    text-decoration-line: none;
+
+    svg {
+      inline-size: 1rem;
+      block-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    span {
+      display: none;
+    }
+  }
+
+  :root[data-layout="topbar"] nav ul {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    list-style: none;
+    margin: 0;
+
+    a {
+      color: var(--muted-foreground);
+      font-size: var(--step--1);
+      text-decoration-line: none;
+
+      &:hover,
+      &[aria-current="page"] {
+        color: var(--foreground);
+      }
+    }
+
+    ul {
+      display: none;
+    }
+  }
+
+  /* 顶栏不显示面包屑：非分区回退项（404 等）为顶级 li，不被上方 ul 规则覆盖；
+     嵌套子级已由上方 ul 规则隐藏（保留作双保险） */
+  :root[data-layout="topbar"] nav [data-crumb] {
+    display: none;
+  }
+
+  :root[data-layout="topbar"] bar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs);
+  }
+
+  /* 全宽按钮仅顶栏模式可用（样式沿用原 Topbar 声明） */
+  :root[data-layout="sidebar"] #fullwidth-toggle {
+    display: none;
+  }
+
+  #fullwidth-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--foreground);
+      background: color-mix(in oklab, var(--muted-foreground) 10%, transparent);
+    }
+
+    svg {
+      inline-size: 1rem;
+      block-size: 1rem;
+    }
+
+    .collapse {
+      display: none;
+    }
+
+    &.is-active {
+      .expand {
+        display: none;
+      }
+      .collapse {
+        display: block;
+      }
+    }
+  }
+</style>

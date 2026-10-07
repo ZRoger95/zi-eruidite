@@ -1,5 +1,6 @@
 ---
 import ChevronIcon from "@/assets/icons/callouts/alt-arrow-down.svg"
+import { localeFromPath, t } from "@/lib/i18n"
 import type { MarkdownHeading } from "astro"
 
 type Section = {
@@ -11,12 +12,13 @@ type Section = {
 type Props = { title: string; sections: Section[] }
 
 const { title, sections } = Astro.props
+const locale = localeFromPath(Astro.url.pathname)
 ---
 
-<nav aria-label="Table of contents">
+<nav aria-label={t(locale, "toc")}>
   <toc-title aria-hidden="true"><span>{title}</span></toc-title>
   <label data-bar>
-    <input type="checkbox" aria-label="Toggle table of contents">
+    <input type="checkbox" aria-label={t(locale, "tocToggle")}>
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <circle cx="8" cy="8" r="6.5" />
       <circle cx="8" cy="8" r="6.5" transform="rotate(-90 8 8)" />
