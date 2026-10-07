@@ -3,7 +3,8 @@ import AuthorCard from "@/components/AuthorCard.astro"
 import BlogCard from "@/components/BlogCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
-import { getPosts } from "@/lib/content"
+import { getPostViews, getPosts } from "@/lib/content"
+import { t } from "@/lib/i18n"
 import { getCollection, type CollectionEntry } from "astro:content"
 
 export async function getStaticPaths() {
@@ -22,6 +23,22 @@ const { name, bio } = author.data
 const posts = (await getPosts()).filter((post) =>
   post.data.authors.some((ref) => ref.id === author.id),
 )
+const listed = new Set(posts.map((post) => post.id))
+
+// 英文译作：en 条目署名该作者、且中文侧未列（同一作品不重复；中文已署名
+// 时优先链中文原文）。卡片按 en 数据渲染、链接指向 /en/blog/<id>。
+const translations = (await getPostViews("en")).filter(
+  (view) =>
+    view.translated &&
+    !listed.has(view.id) &&
+    view.en?.data.authors.some((ref) => ref.id === author.id),
+)
+
+// 两类条目按日期倒序合并为一个列表（日期取中文侧，与既有排序一致）。
+const entries = [
+  ...posts.map((post) => ({ date: post.data.date, post })),
+  ...translations.map((view) => ({ date: view.zh.data.date, view })),
+].sort((a, b) => b.date.getTime() - a.date.getTime())
 ---
 
 <Layout crumbs={[{ label: name, href: `/authors/${author.id}` }]}>
@@ -34,11 +51,23 @@ const posts = (await getPosts()).filter((post) =>
 
   <section>
     <h2>文章</h2>
-    {posts.length > 0 ? (
+    {entries.length > 0 ? (
         <ul>
-          {posts.map((post) => (
-            <BlogCard post={post} />
-          ))}
+          {entries.map((item) =>
+            "view" in item ? (
+              <BlogCard
+                post={item.view}
+                locale="en"
+                badge={
+                  item.view.en?.data.aiTranslated
+                    ? t("zh", "aiTranslated")
+                    : undefined
+                }
+              />
+            ) : (
+              <BlogCard post={item.post} />
+            ),
+          )}
         </ul>
       ) : (
         <p>暂无文章。</p>

@@ -1,11 +1,18 @@
 ---
 import type { PostView } from "@/lib/content"
-import { localeFromPath, localePath, t } from "@/lib/i18n"
+import { localeFromPath, localePath, t, type Locale } from "@/lib/i18n"
 import { formatDate } from "@/lib/utils"
 import { Image } from "astro:assets"
 import { getEntries, type CollectionEntry } from "astro:content"
 
-type Props = { post: CollectionEntry<"blog"> | PostView }
+type Props = {
+  post: CollectionEntry<"blog"> | PostView
+  /** 渲染语言覆盖：默认按当前页面路径推断；跨语言列卡片时显式传入
+   *（如作者页列英文译作） */
+  locale?: Locale
+  /** 徽章文案覆盖：默认仅未翻译条目显示「尚未翻译」；传入时按传入值渲染 */
+  badge?: string
+}
 
 const { post } = Astro.props
 const view: PostView =
@@ -13,9 +20,12 @@ const view: PostView =
     ? post
     : { id: post.id, data: post.data, translated: true, zh: post }
 
-const locale = localeFromPath(Astro.url.pathname)
+const locale = Astro.props.locale ?? localeFromPath(Astro.url.pathname)
 const href = localePath(`/blog/${view.id}`, locale)
 const authors = await getEntries(view.data.authors)
+const badge =
+  Astro.props.badge ??
+  (!view.translated ? t(locale, "untranslatedBadge") : undefined)
 ---
 
 <li>
@@ -27,9 +37,7 @@ const authors = await getEntries(view.data.authors)
   <entry-info>
     <entry-head>
       <a href={href}>{view.data.title}</a>
-      {!view.translated && (
-        <entry-badge>{t(locale, "untranslatedBadge")}</entry-badge>
-      )}
+      {badge && <entry-badge>{badge}</entry-badge>}
     </entry-head>
     <entry-meta>
       {authors.length > 0 && (
