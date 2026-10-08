@@ -107,20 +107,13 @@ const isArticle = stripped.startsWith("/blog/") && stripped !== "/blog/"
 </site-bar>
 
 <script>
+  import { onScroll, top } from "@/lib/scroll"
+
   const bar = document.querySelector("site-bar")
   if (bar) {
-    const sentinel = document.createElement("div")
-    sentinel.style.cssText =
-      "position:absolute;top:0;left:0;width:100%;height:1px;pointer-events:none"
-    bar.insertAdjacentElement("afterend", sentinel)
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        bar.classList.toggle("is-scrolled", !entry.isIntersecting)
-      },
-      { rootMargin: "1px 0px 0px 0px" },
-    )
-    observer.observe(sentinel)
+    const update = () => bar.classList.toggle("is-scrolled", top() > 0)
+    onScroll(update)
+    update()
   }
 
   // Full-width toggle
@@ -293,10 +286,24 @@ const isArticle = stripped.startsWith("/blog/") && stripped !== "/blog/"
     transition: border-color 0.2s;
     border-block-end: 1px solid transparent;
 
-    /* page-nav 为 display: contents，site-bar 直接作为 page-shell 的网格项 */
+    /* page-nav 为 display: contents，site-bar 直接作为 page-shell 的网格项；
+       容器模式下顶栏为固定行，无需 sticky（<64rem 分支保留 sticky） */
     @media (width >= 64rem) {
+      position: static;
       grid-column: 1 / -1;
       grid-row: 1;
+      /* 容器模式的稳定 gutter 使内容盒窄 sbw：右内边距补回 sbw（overlay
+         环境为 0），使内容行中心与可滚动区（clientWidth）中心重合 */
+      padding-inline-start: max(
+        var(--grid-gutter),
+        (100% - 50rem) /
+        2 +
+        var(--grid-gutter)
+      );
+      padding-inline-end: calc(
+        max(var(--grid-gutter), (100% - 50rem) / 2 + var(--grid-gutter)) +
+        var(--scrollbar-width, 0px)
+      );
     }
   }
 

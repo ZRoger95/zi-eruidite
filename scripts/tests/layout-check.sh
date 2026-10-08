@@ -66,6 +66,8 @@ npm run build
 assert_match dist/index.html "<html[^>]*data-layout=\"${default}\"" "根元素输出默认布局属性"
 assert_has  dist/index.html '<page-shell' "统一骨架 page-shell"
 assert_has  dist/index.html '<site-bar'   "统一骨架 site-bar"
+assert_has  dist/index.html '<page-scroll' "统一骨架 page-scroll"
+assert_match dist/index.html '<main[^>]*id="main-content"[^>]*tabindex="-1"' "main 可聚焦（skip-link 目标）"
 # 旧名清除：page-grid / page-header / page-content 在 introducing-v2 正文示例代码中出现文本，
 # 故对这三个词做标记/打包资源层面的结构性断言；其余旧名全 dist 不得出现。
 for old in page-grid page-header page-content; do
@@ -94,6 +96,21 @@ if grep -rqE -- ':root\[data-layout=topbar\][^{}]*\[data-crumb\][^{}]*\{display:
 else
   fail "顶栏作用域 [data-crumb] 隐藏规则缺失（须以 :root[data-layout=topbar] 作用域化）"
 fi
+# 容器模式 CSS 产物（topbar ≥64rem 内容区独立滚动）：
+# page-scroll 默认 contents + 容器激活（grid 滚动规则）+ 短页不拉伸 + gutter 迁移
+if grep -rqE -- 'page-scroll[^{}]*\{[^{}]*display:contents' dist/_astro/*.css &&
+   grep -rqE -- 'page-scroll[^{}]*\{[^{}]*overflow-y:auto' dist/_astro/*.css &&
+   grep -rqF -- 'align-content:start' dist/_astro/*.css &&
+   grep -rqF -- 'scrollbar-gutter:stable' dist/_astro/*.css &&
+   grep -rqF -- 'scrollbar-gutter:auto' dist/_astro/*.css; then
+  pass "容器模式 CSS 产物齐备"
+else
+  fail "容器模式 CSS 产物缺失（page-scroll contents/滚动/短页不拉伸 或 gutter 迁移）"
+fi
+# 对齐校准（--scrollbar-width）：CSS 补偿引用 + JS 写入（Layout 首帧测量/scroll.ts）
+grep -rqF -- '--scrollbar-width' dist/_astro/*.css || fail "CSS 缺少 --scrollbar-width 补偿引用"
+grep -rqF -- '--scrollbar-width' dist/_astro/*.js  || fail "JS 缺少 --scrollbar-width 写入"
+pass "--scrollbar-width 校准机制存在"
 
 # ---------- 翻转默认值：同一骨架，仅属性跟随（构建期无分支） ----------
 other=$([ "${default}" = sidebar ] && echo topbar || echo sidebar)

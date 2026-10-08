@@ -67,16 +67,47 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
           ><slot name="actions" slot="actions" /></SiteBar
         >
       </page-nav>
-      {Astro.slots.has("toc") && (
-        <page-toc><slot name="toc" /></page-toc>
-      )}
-      <main id="main-content"><slot /></main>
-      <page-footer><Footer /></page-footer>
+      <page-scroll>
+        {Astro.slots.has("toc") && (
+          <page-toc><slot name="toc" /></page-toc>
+        )}
+        <main id="main-content" tabindex="-1"><slot /></main>
+        <page-footer><Footer /></page-footer>
+      </page-scroll>
     </page-shell>
+    <script is:inline>
+      // 首帧对齐校准：容器态测滚动条宽度写 --scrollbar-width（非容器态跳过，
+      // CSS 回退值 0 即无补偿）；需解析期同步执行，故纯 JS、不可 import。
+      ;(() => {
+        const el = document.querySelector("page-scroll")
+        if (!el) return
+        const style = getComputedStyle(el)
+        if (style.display === "contents" || style.overflowY !== "auto") return
+        document.documentElement.style.setProperty(
+          "--scrollbar-width",
+          el.offsetWidth - el.clientWidth + "px",
+        )
+      })()
+    </script>
   </body>
 </html>
 
+<script>
+  import { initScroll } from "@/lib/scroll"
+
+  initScroll()
+</script>
+
 <style>
+  /* 默认不产生盒子：sidebar 与移动端布局语义零变化 */
+  page-scroll {
+    display: contents;
+  }
+
+  main:focus {
+    outline: none; /* skip-link 跳转的可见反馈由滚动/视口变化承担 */
+  }
+
   .skip-link {
     position: fixed;
     top: var(--space-2xs);
@@ -215,8 +246,34 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     position: relative;
     z-index: 1;
 
-    @media (width >= 64rem) {
+    /* <64rem：沿用原 page-content-topbar 的 flex 列语义（子项外边距不折叠） */
+    @media (width < 64rem) {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  /* ---------- 容器模式（topbar ≥64rem）：顶栏固定行 + 内容行独立滚动 ---------- */
+  @media (width >= 64rem) {
+    /* 页面级滚动收进容器：root 不再滚动、gutter 交给 page-scroll（layout.css） */
+    :root[data-layout="topbar"] {
+      overflow: hidden;
+    }
+
+    :root[data-layout="topbar"] body {
+      overflow: hidden;
+    }
+
+    :root[data-layout="topbar"] page-shell {
       display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100svh;
+      overflow: hidden;
+    }
+
+    :root[data-layout="topbar"] page-scroll {
+      display: grid;
+      /* 原 page-shell 顶栏列定义逐字迁移（列宽公式不变） */
       grid-template-columns:
         minmax(var(--grid-gutter), 1fr)
         14rem
@@ -232,13 +289,12 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
         )
         minmax(var(--grid-gutter), 1fr);
       column-gap: var(--space-l);
-      grid-template-rows: auto auto auto;
-    }
-
-    /* <64rem：沿用原 page-content-topbar 的 flex 列语义（子项外边距不折叠） */
-    @media (width < 64rem) {
-      display: flex;
-      flex-direction: column;
+      overflow-y: auto;
+      scrollbar-gutter: stable;
+      min-height: 0;
+      /* 内容短于容器时（如 404）两行不被多余空间拉伸：
+         main 不拉高、页脚随内容流，与基线短页行为一致 */
+      align-content: start;
     }
   }
 
@@ -266,7 +322,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
 
     @media (width >= 64rem) {
       grid-column: 2 / 4;
-      grid-row: 2;
+      grid-row: 1;
     }
 
     @media (width < 64rem) {
@@ -277,7 +333,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     }
   }
 
-  :root[data-layout="topbar"] page-shell:has(> page-toc) main {
+  :root[data-layout="topbar"] page-scroll:has(> page-toc) main {
     @media (width >= 64rem) {
       grid-column: 3;
     }
@@ -291,21 +347,13 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     display: block;
     margin-block-start: var(--space-xl);
 
+    /* 容器模式：本元素退为普通网格项（拉伸占满行高，使 nav 的 sticky 在
+       容器滚动域内可停靠）；停靠偏移与 max-height 由 nav 承担，见
+       TableOfContents.astro 容器分支。 */
     @media (width >= 64rem) {
       grid-column: 2;
-      grid-row: 2;
-      align-self: start;
+      grid-row: 1;
       width: 14rem;
-      position: sticky;
-      top: calc(var(--space-2xs) + 2rem + var(--space-m));
-      max-height: calc(
-        100svh -
-        var(--space-2xs) -
-        2rem -
-        var(--space-m) -
-        var(--space-xl)
-      );
-      overflow-y: auto;
     }
 
     @media (width < 64rem) {
@@ -324,7 +372,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
 
     @media (width >= 64rem) {
       grid-column: 2 / 4;
-      grid-row: 3;
+      grid-row: 2;
     }
 
     @media (width < 64rem) {

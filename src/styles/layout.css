@@ -63,3 +63,11 @@ html {
     }
   }
 }
+
+/* 容器模式（topbar ≥64rem）：页面级滚动收进 page-scroll（见 Layout 容器规则），
+   gutter 随之下移到容器，root 不再预留。 */
+@media (width >= 64rem) {
+  :root[data-layout="topbar"] {
+    scrollbar-gutter: auto;
+  }
+}

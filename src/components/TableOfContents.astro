@@ -79,6 +79,21 @@ const locale = localeFromPath(Astro.url.pathname)
     }
   }
 
+  /* 容器模式（topbar ≥64rem）：滚动承接者变为 page-scroll，本 nav 承担停靠
+     ——偏移相对容器顶（顶栏底）重算；max-height = 容器高（100svh − 顶栏高）
+     − 停靠偏移 − 原底部缓冲（--space-xl）。 */
+  :root[data-layout="topbar"] nav {
+    @media (width >= 64rem) {
+      top: calc(var(--space-m) - var(--space-2xs));
+      max-height: calc(
+        100svh -
+        (2rem + 2 * var(--space-2xs) + 1px) -
+        (var(--space-m) - var(--space-2xs)) -
+        var(--space-xl)
+      );
+    }
+  }
+
   toc-title {
     display: grid;
     grid-template-rows: 0fr;

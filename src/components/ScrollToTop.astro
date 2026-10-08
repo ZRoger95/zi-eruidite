@@ -52,20 +52,21 @@ const locale = localeFromPath(Astro.url.pathname)
 </style>
 
 <script>
+  import { onScroll, setTop, top, viewportHeight } from "@/lib/scroll"
+
   const buttons = [
     ...document.querySelectorAll<HTMLElement>("[data-scroll-top]"),
   ]
 
   const update = () => {
-    const past = scrollY > innerHeight * 0.5
+    const past = top() > viewportHeight() * 0.5
     for (const button of buttons) button.toggleAttribute("data-visible", past)
   }
 
-  addEventListener("scroll", update, { passive: true })
+  onScroll(update)
   update()
 
   document.addEventListener("click", (event) => {
-    if ((event.target as Element).closest("[data-scroll-top]"))
-      window.scrollTo({ top: 0 })
+    if ((event.target as Element).closest("[data-scroll-top]")) setTop(0)
   })
 </script>

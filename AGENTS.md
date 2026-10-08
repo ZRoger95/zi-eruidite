@@ -89,9 +89,12 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 - 页面布局使用 Utopia 12 列流体网格，通过 `--grid-max-width`、`--grid-gutter`、
   `--grid-columns` 和 `grid-column: x / y` 控制区域跨度。
 - **布局（Layout）**：`<html data-layout>` 是布局的唯一信号（`sidebar`/`topbar`）；
-  两种布局共用一份统一骨架（`page-shell > [page-nav, page-toc, main, page-footer]`），
+  两种布局共用一份统一骨架（`page-shell > [page-nav, page-scroll > [page-toc, main, page-footer]]`），
   由 `:root[data-layout=…]` 作用域 CSS 呈现；访客经切换按钮运行时切换
   （`localStorage.layout`，见 `docs/superpowers/specs/2026-10-07-layout-switch-design.md`）。
+- **滚动机制（Scroll）**：`topbar × ≥64rem` 下内容区独立滚动（`page-scroll` 承接滚动与
+  `scrollbar-gutter`，滚动条只属于内容区），其余组合保持页面级滚动；依赖滚动的组件
+  统一经 `src/lib/scroll.ts` 的「活跃滚动源」访问。
 
 ## 内容与资源规范
 

@@ -14,6 +14,7 @@
 </script>
 
 <script>
+  import { atBottom, onScroll, setTop } from "@/lib/scroll"
   import { hashId, normalizePath } from "@/lib/utils"
 
   const articles = [
@@ -95,17 +96,12 @@
     if (!target || !article) return
     event.preventDefault()
     if (target === articles[0]) {
-      scrollTo({ top: 0 })
+      setTop(0)
     } else {
       target.scrollIntoView()
     }
     sync(article, target === article ? "" : link.hash)
   })
-
-  const atBottom = () => {
-    const max = document.documentElement.scrollHeight - innerHeight
-    return max > 0 && scrollY >= max - 2
-  }
 
   const currentArticle = () => {
     if (atBottom()) return articles[articles.length - 1]
@@ -129,6 +125,6 @@
     sync(current, hash)
   }
 
-  addEventListener("scroll", update, { passive: true })
+  onScroll(update)
   update()
 </script>
