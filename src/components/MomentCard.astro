@@ -2,9 +2,14 @@
 import { Image } from "astro:assets"
 import { render, type CollectionEntry } from "astro:content"
 
-type Props = { moment: CollectionEntry<"moments">; link?: boolean }
+type Props = {
+  moment: CollectionEntry<"moments">
+  link?: boolean
+  /** "zed" 应用 /moments 列表页的扁平时间线条目；"article" 在其之上加详情页 Zed 文章正文 refine；默认保持原卡片样式 */
+  variant?: "default" | "zed" | "article"
+}
 
-const { moment, link = true } = Astro.props
+const { moment, link = true, variant = "default" } = Astro.props
 const { Content } = await render(moment)
 
 // Count images in raw body to drive grid layout
@@ -20,7 +25,7 @@ const dateStr = new Intl.DateTimeFormat("zh-CN", {
 }).format(moment.data.date)
 ---
 
-<article class="moment-card">
+<article class="moment-card" data-variant={variant}>
   {link && (
     <a
       href={`/moments/${moment.id}`}
@@ -296,5 +301,98 @@ const dateStr = new Intl.DateTimeFormat("zh-CN", {
     color: var(--accent);
     border-color: var(--accent);
     background: color-mix(in oklab, var(--accent) 10%, transparent);
+  }
+
+  /* ---------- Zed 变体：扁平（无盒子）+ mono 元数据（zed 与 article 共用基座） ---------- */
+  .moment-card[data-variant="zed"],
+  .moment-card[data-variant="article"] {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    transition: none;
+  }
+
+  .moment-card[data-variant="zed"]:hover,
+  .moment-card[data-variant="zed"]:has(.moment-card-link:hover),
+  .moment-card[data-variant="article"]:hover,
+  .moment-card[data-variant="article"]:has(.moment-card-link:hover) {
+    background: transparent;
+    border-color: transparent;
+    transform: none;
+  }
+
+  .moment-card[data-variant="zed"] time,
+  .moment-card[data-variant="article"] time {
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
+    letter-spacing: 0.02em;
+  }
+
+  .moment-card[data-variant="zed"] .moment-link,
+  .moment-card[data-variant="zed"] .moment-link-thumb,
+  .moment-card[data-variant="zed"] .moment-body :global(img),
+  .moment-card[data-variant="article"] .moment-link,
+  .moment-card[data-variant="article"] .moment-link-thumb,
+  .moment-card[data-variant="article"] .moment-body :global(img) {
+    border-radius: var(--radius-sm);
+  }
+
+  .moment-card[data-variant="zed"] .moment-link-url,
+  .moment-card[data-variant="article"] .moment-link-url {
+    font-family: var(--font-mono);
+  }
+
+  .moment-card[data-variant="zed"] .moment-tags a,
+  .moment-card[data-variant="article"] .moment-tags a {
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+
+  /* ---------- article 变体：/moments/[id] 详情页 Zed 文章正文 refine ---------- */
+  .moment-card[data-variant="article"] time {
+    letter-spacing: 0.04em;
+  }
+
+  .moment-card[data-variant="article"] .moment-body {
+    line-height: 1.75;
+
+    :global(p) {
+      margin-bottom: var(--space-s);
+    }
+
+    :global(p:last-child) {
+      margin-bottom: 0;
+    }
+
+    :global(h2) {
+      font-size: var(--step-1);
+      font-weight: 610;
+      letter-spacing: -0.02em;
+      margin-block: var(--space-l) var(--space-xs);
+    }
+
+    :global(h3) {
+      font-size: var(--step-0);
+      font-weight: 610;
+      letter-spacing: -0.02em;
+      margin-block: var(--space-l) var(--space-xs);
+    }
+
+    :global(blockquote) {
+      border-inline-start: 2px solid var(--accent);
+      padding-inline-start: var(--space-s);
+      color: var(--muted-foreground);
+      margin-block: var(--space-s);
+    }
+
+    :global(hr) {
+      border: 0;
+      border-top: 1px solid var(--border);
+      margin-block: var(--space-l);
+    }
   }
 </style>

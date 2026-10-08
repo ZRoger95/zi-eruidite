@@ -161,6 +161,9 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     --gap: 2px;
     position: relative;
     margin-bottom: var(--space-l);
+    padding: var(--space-xs);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
   }
 
   .activity-caption {
@@ -169,13 +172,14 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     justify-content: space-between;
     gap: var(--space-s);
     margin-bottom: var(--space-xs);
-    font-size: var(--step--1);
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
     color: var(--muted-foreground);
   }
 
   .activity-year-label select {
-    font-family: var(--font-sans);
-    font-size: var(--step--1);
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
     color: var(--muted-foreground);
     background: var(--muted);
     border: 1px solid var(--border);
@@ -199,13 +203,14 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     grid-template-rows: auto repeat(7, auto);
     column-gap: var(--gap);
     row-gap: var(--gap);
-    /* 右侧留出末尾月份标签（如「12月」）的溢出空间 */
-    padding-right: 28px;
+    /* 不设 padding-right：末尾月份标签（如「12月」）总落在最后数列之前的空列上，
+       不会越界；留白会让热力图在带边框面板内偏左、右侧出现死区 */
   }
 
   .activity-month {
     align-self: start;
     justify-self: start;
+    font-family: var(--font-mono);
     font-size: calc(var(--step--1) - 1px);
     color: var(--muted-foreground);
     line-height: 1.3;
@@ -216,6 +221,7 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     align-self: center;
     justify-self: end;
     padding-right: 4px;
+    font-family: var(--font-mono);
     font-size: 10px;
     line-height: 1;
     color: var(--muted-foreground);
@@ -273,6 +279,7 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     justify-content: flex-end;
     gap: var(--space-2xs);
     margin-top: var(--space-2xs);
+    font-family: var(--font-mono);
     font-size: calc(var(--step--1) - 1px);
     color: var(--muted-foreground);
   }

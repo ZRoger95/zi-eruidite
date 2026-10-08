@@ -5,7 +5,6 @@ import MomentComposer from "@/components/MomentComposer.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
 import { getMoments } from "@/lib/content"
-import type { CollectionEntry } from "astro:content"
 
 const PAGE_SIZE = 20
 const allMoments = await getMoments()
@@ -16,46 +15,6 @@ const totalPages = Math.max(1, Math.ceil(allMoments.length / PAGE_SIZE))
 const start = (currentPage - 1) * PAGE_SIZE
 const moments = allMoments.slice(start, start + PAGE_SIZE)
 
-// Group moments by date for separators
-const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
-  month: "long",
-  day: "numeric",
-  timeZone: "Asia/Shanghai",
-})
-
-function groupByDate(
-  items: CollectionEntry<"moments">[],
-): { label: string; moments: CollectionEntry<"moments">[] }[] {
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const dayBefore = new Date(today)
-  dayBefore.setDate(dayBefore.getDate() - 2)
-
-  const todayStr = today.toDateString()
-  const yesterdayStr = yesterday.toDateString()
-  const dayBeforeStr = dayBefore.toDateString()
-
-  const groups = new Map<string, CollectionEntry<"moments">[]>()
-  for (const m of items) {
-    const key = m.data.date.toDateString()
-    const group = groups.get(key)
-    if (group) group.push(m)
-    else groups.set(key, [m])
-  }
-
-  return [...groups].map(([key, g]) => {
-    let label: string
-    if (key === todayStr) label = "今天"
-    else if (key === yesterdayStr) label = "昨天"
-    else if (key === dayBeforeStr) label = "前天"
-    else label = dateFormatter.format(g[0].data.date)
-    return { label, moments: g }
-  })
-}
-
-const grouped = groupByDate(moments)
-
 function pageUrl(p: number): string {
   return p === 1 ? "/moments" : `/moments?page=${p}`
 }
@@ -64,18 +23,17 @@ function pageUrl(p: number): string {
 <Layout>
   <MetaPage slot="head" title="动态" description="短动态、闪念与随手记录。" />
   <div class="timeline-page">
-    <h1 class="timeline-title">动态</h1>
+    <header class="timeline-head">
+      <p class="timeline-kicker">~/moments · {allMoments.length} entries</p>
+      <h1 class="timeline-title">动态</h1>
+    </header>
     <ActivityGraph moments={allMoments} />
     <MomentComposer />
     <div class="timeline">
-      {grouped.map(({ label, moments: groupMoments }) => (
-        <div class="date-group">
-          <div class="date-separator">
-            <span class="date-label">{label}</span>
-          </div>
-          {groupMoments.map((moment) => (
-            <MomentCard moment={moment} />
-          ))}
+      {moments.map((moment) => (
+        <div class="tl-entry">
+          <span class="tl-node" aria-hidden="true"></span>
+          <MomentCard moment={moment} variant="zed" />
         </div>
       ))}
       {moments.length === 0 && (
@@ -102,41 +60,69 @@ function pageUrl(p: number): string {
     margin-inline: auto;
   }
 
+  .timeline-head {
+    padding-bottom: var(--space-s);
+    margin-bottom: var(--space-l);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .timeline-kicker {
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    margin: 0 0 var(--space-3xs);
+  }
+
   .timeline-title {
     font-size: var(--step-3);
     font-weight: 610;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
     line-height: 1.05;
-    margin: 0 0 var(--space-l);
+    color: var(--accent);
+    margin: 0;
   }
 
-  .date-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2xs);
-    margin-bottom: var(--space-l);
+  .timeline {
+    position: relative;
+    padding-left: 28px;
   }
 
-  .date-group:last-child {
-    margin-bottom: 0;
+  /* Zed 实线时间轴脊柱 */
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 6px;
+    bottom: 6px;
+    width: 1px;
+    background: var(--border);
   }
 
-  .date-separator {
-    padding: 0 0 var(--space-3xs);
+  .tl-entry {
+    position: relative;
+    padding-bottom: var(--space-l);
   }
 
-  .date-label {
-    display: inline-block;
-    font-size: var(--step--1);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    color: var(--muted-foreground);
-    line-height: 1.4;
-    text-transform: uppercase;
+  .tl-entry:last-child {
+    padding-bottom: 0;
+  }
+
+  /* 菱形节点，居中骑在脊柱上，与条目日期行对齐 */
+  .tl-node {
+    position: absolute;
+    left: -22.5px;
+    top: 4px;
+    width: 8px;
+    height: 8px;
+    transform: rotate(45deg);
+    background: var(--background);
+    border: 1px solid var(--accent);
   }
 
   .empty {
     color: var(--muted-foreground);
+    font-family: var(--font-mono);
     font-size: var(--step--1);
   }
 
@@ -144,17 +130,48 @@ function pageUrl(p: number): string {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: var(--space-m);
+    gap: var(--space-xs);
     margin-top: var(--space-xl);
-    font-size: var(--step--1);
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
+
+    a,
+    span {
+      color: var(--muted-foreground);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3xs) var(--space-xs);
+    }
+
+    span {
+      border-color: transparent;
+    }
 
     a {
-      color: var(--accent);
+      color: var(--foreground);
       text-decoration: none;
+      transition:
+        border-color 0.15s ease,
+        color 0.15s ease;
     }
 
     a:hover {
-      text-decoration: underline;
+      color: var(--accent);
+      border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+    }
+  }
+
+  @media (width < 480px) {
+    .timeline {
+      padding-left: 20px;
+    }
+
+    .timeline::before {
+      left: 5px;
+    }
+
+    .tl-node {
+      left: -18.5px;
     }
   }
 </style>

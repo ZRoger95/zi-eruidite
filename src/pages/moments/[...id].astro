@@ -4,7 +4,7 @@ import Layout from "@/layouts/Layout.astro"
 import { getMoments, pageTitle } from "@/lib/content"
 import { getEntry, type CollectionEntry } from "astro:content"
 import { SITE } from "@/consts"
-import { localeFromPath, SITE_META } from "@/lib/i18n"
+import { localeFromPath, SITE_META, t } from "@/lib/i18n"
 
 export async function getStaticPaths() {
   const moments = await getMoments()
@@ -63,16 +63,25 @@ const description = descMatch
   </Fragment>
 
   <div class="moment-detail">
-    <MomentCard moment={moment} link={false} />
+    <p class="article-kicker">~/moments · {moment.id}</p>
+    <MomentCard moment={moment} link={false} variant="article" />
     <nav class="back-nav">
-      <a href="/moments">← 返回动态</a>
+      <a href="/moments">← {t(locale, "backToMoments")}</a>
     </nav>
   </div>
 </Layout>
 
 <style>
   .moment-detail {
-    max-width: 640px;
+    max-width: 44rem;
+  }
+
+  .article-kicker {
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    margin: 0 0 var(--space-s);
   }
 
   .back-nav {
@@ -81,14 +90,22 @@ const description = descMatch
     border-top: 1px solid var(--border);
 
     a {
-      font-size: var(--step--1);
-      color: var(--muted-foreground);
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: calc(var(--step--1) - 1px);
+      color: var(--foreground);
       text-decoration: none;
-      transition: color 0.15s;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3xs) var(--space-xs);
+      transition:
+        border-color 0.15s,
+        color 0.15s;
     }
 
     a:hover {
       color: var(--accent);
+      border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
     }
   }
 </style>
