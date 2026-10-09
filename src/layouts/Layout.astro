@@ -290,6 +290,9 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
         minmax(var(--grid-gutter), 1fr);
       column-gap: var(--space-l);
       overflow-y: auto;
+      /* 首页 topbar 全出血横线用 100vw breakout，clip 掉横向溢出（不产生横向滚动条，
+         也不裁剪 position:fixed 的 home-rails 竖线） */
+      overflow-x: clip;
       scrollbar-gutter: stable;
       min-height: 0;
       /* 内容短于容器时（如 404）两行不被多余空间拉伸：

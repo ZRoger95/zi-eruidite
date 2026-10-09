@@ -284,7 +284,9 @@ const isArticle = stripped.startsWith("/blog/") && stripped !== "/blog/"
     background-color: color-mix(in oklab, var(--background) 90%, transparent);
     backdrop-filter: blur(var(--blur-sm));
     transition: border-color 0.2s;
-    border-block-end: 1px solid transparent;
+    /* 静止即显示虚线（与 home-rails 竖向虚线呼应），滚动后 .is-scrolled 再加深 */
+    border-block-end: 1px dashed
+      color-mix(in oklab, var(--border) 45%, transparent);
 
     /* page-nav 为 display: contents，site-bar 直接作为 page-shell 的网格项；
        容器模式下顶栏为固定行，无需 sticky（<64rem 分支保留 sticky） */

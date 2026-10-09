@@ -18,6 +18,8 @@ const moments = SITE.momentsOnHome
 <Layout>
   <MetaPage slot="head" alternates={{ zh: "/", en: "/en/" }} />
 
+  <home-rails aria-hidden="true"></home-rails>
+
   <hero-card>
     {SITE.avatar && (
       <hero-avatar>
@@ -27,6 +29,7 @@ const moments = SITE.momentsOnHome
     <h1>{t(locale, "heroGreeting")} {SITE.title}</h1>
     {SITE.hero[locale].paragraphs.map((paragraph) => <p>{paragraph}</p>)}
   </hero-card>
+  <home-rule aria-hidden="true"></home-rule>
 
   <latest-section>
     <h2>{t(locale, "latestPosts")}</h2>
@@ -34,19 +37,23 @@ const moments = SITE.momentsOnHome
       {latestPosts.map((post) => <BlogCard post={post} />)}
     </ul>
   </latest-section>
+  <home-rule aria-hidden="true"></home-rule>
 
   {moments.length > 0 && (
-    <latest-section>
-      <h2>
-        最新动态
-        <a href="/moments" class="see-all">查看全部 →</a>
-      </h2>
-      <div class="moments-list">
-        {moments.map((moment) => (
-          <MomentCard moment={moment} />
-        ))}
-      </div>
-    </latest-section>
+    <>
+      <latest-section>
+        <h2>
+          {t(locale, "latestMoments")}
+          <a href="/moments" class="see-all">{t(locale, "viewAll")}</a>
+        </h2>
+        <div class="moments-list">
+          {moments.map((moment) => (
+            <MomentCard moment={moment} />
+          ))}
+        </div>
+      </latest-section>
+      <home-rule aria-hidden="true"></home-rule>
+    </>
   )}
 </Layout>
 
@@ -69,5 +76,93 @@ const moments = SITE.momentsOnHome
     flex-direction: column;
     gap: var(--space-xs);
     margin-top: var(--space-s);
+  }
+
+  home-rails {
+    display: none;
+  }
+
+  @media (width >= 64rem) {
+    /* 共享几何变量：分隔带高 + 斜纹色（随明暗自适应），供 band / node 取用 */
+    :root[data-layout="topbar"] {
+      --home-band-h: 0.875rem;
+      --home-hatch: color-mix(in oklab, var(--border) 45%, transparent);
+    }
+
+    /* 固定框架：居中定宽盒，宽度 = 内容列宽（measure − 2×gutter），
+       左右各一条 1px 虚线（border-inline）；z-index:-1 落在正文背后，
+       顶栏半透模糊背景盖于其上→线条“从导航栏下方开始”若隐若现。
+       topbar 容器滚动为内容列预留 scrollbar-gutter，使内容列中心相对
+       视口左移半个滚动条宽；固定盒同向补偿，才能与 main 左右缘对齐。 */
+    :root[data-layout="topbar"] home-rails {
+      display: block;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      margin-inline: auto;
+      width: calc(var(--topbar-measure) - 2 * var(--grid-gutter));
+      transform: translateX(calc(var(--scrollbar-width, 0px) / -2));
+      z-index: -1;
+      pointer-events: none;
+      border-inline: 1px dashed var(--border);
+    }
+  }
+
+  home-rule {
+    display: none;
+  }
+
+  @media (width >= 64rem) {
+    /* 全出血斜纹分隔带：100vw breakout 到视口两端（page-scroll 已 overflow-x:clip 防横滚），
+       上下各一条发丝实线、中间填 45° 淡斜纹，复刻 zed divider-slash。 */
+    :root[data-layout="topbar"] home-rule {
+      display: block;
+      position: relative;
+      height: var(--home-band-h);
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      margin-block: var(--space-xl);
+      border-block-start: 1px solid var(--border);
+      border-block-end: 1px solid var(--border);
+      background-image: repeating-linear-gradient(
+        45deg,
+        var(--home-hatch) 0 1px,
+        transparent 1px 4px
+      );
+    }
+  }
+
+  :root[data-layout="topbar"] hero-card {
+    background: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    text-align: center;
+  }
+
+  :root[data-layout="topbar"] hero-card h1 {
+    font-style: italic;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+
+  :root[data-layout="topbar"] hero-card p {
+    margin-inline: auto;
+  }
+
+  /* 内容区留白：文字/卡片从竖线内侧退让，不贴参考线（仅 topbar，无背景） */
+  :root[data-layout="topbar"] hero-card,
+  :root[data-layout="topbar"] latest-section {
+    padding-inline: var(--space-m);
+  }
+</style>
+
+<style is:global>
+  /* 页脚与上方内容块同样从竖线内侧退让：page-footer 归 Layout.astro 所有，
+     scoped 样式无法命中，故用 global；本块仅随首页产出，不影响其它 topbar 页面 */
+  :root[data-layout="topbar"] page-footer {
+    padding-inline: var(--space-m);
   }
 </style>
