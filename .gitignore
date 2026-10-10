@@ -16,3 +16,4 @@ pnpm-debug.log*
 
 # Agent session artifacts
 .superpowers/
+.playwright-cli/
