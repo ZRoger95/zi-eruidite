@@ -27,6 +27,10 @@ const locale = localeFromPath(Astro.url.pathname)
     <ChevronIcon aria-hidden="true" />
   </label>
   <ul data-bar>
+    <li class="toc-rail" aria-hidden="true">
+      <svg class="rail-muted"><path /></svg>
+      <svg class="rail-active"><path /></svg>
+    </li>
     {sections.map(({ id, label, open, headings }) =>
         id ? (
           <li data-group>
@@ -76,6 +80,21 @@ const locale = localeFromPath(Astro.url.pathname)
       position: relative;
       top: auto;
       max-height: none;
+    }
+  }
+
+  /* 容器模式（topbar ≥64rem）：滚动承接者变为 page-scroll，本 nav 承担停靠
+     ——偏移相对容器顶（顶栏底）重算；max-height = 容器高（100svh − 顶栏高）
+     − 停靠偏移 − 原底部缓冲（--space-xl）。 */
+  :root[data-layout="topbar"] nav {
+    @media (width >= 64rem) {
+      top: calc(var(--space-m) - var(--space-2xs));
+      max-height: calc(
+        100svh -
+        (2rem + 2 * var(--space-2xs) + 1px) -
+        (var(--space-m) - var(--space-2xs)) -
+        var(--space-xl)
+      );
     }
   }
 
@@ -170,11 +189,18 @@ const locale = localeFromPath(Astro.url.pathname)
   }
 
   nav > ul {
+    position: relative;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: none;
+
+    /* 桌面轨道基槽：基准 16.5px 挂在 ul 而非 li 上，避免嵌套 details>ul
+       的子项重复叠加基槽（绝对定位的 .toc-rail 不随 padding 偏移）。 */
+    @media (width >= 64rem) {
+      padding-inline-start: 16.5px;
+    }
 
     &::-webkit-scrollbar {
       display: none;
@@ -273,6 +299,74 @@ const locale = localeFromPath(Astro.url.pathname)
 
     li[data-depth="4"] {
       --indent: 2;
+    }
+
+    /* 桌面绕行轨道模式（≥64rem）：缩进改为固定车道步进（每级 8px，基槽
+       16.5px 由 ul padding 提供），文字左缘 = 16.5px + (shift + indent) × 8px，
+       轨道节点 x = 8.5 + 车道 × 8，与 JS 度量口径一致；行距放宽给
+       贝塞尔过渡留出走线空间。 */
+    @media (width >= 64rem) {
+      gap: 0.75rem;
+
+      li[data-depth],
+      li[data-group] {
+        padding-inline-start: calc((var(--shift, 0) + var(--indent, 0)) * 8px);
+      }
+
+      /* 分组展开后给 summary→子行的换道曲线留出走线空间 */
+      li[data-group] details > ul {
+        margin-block-start: 0.75rem;
+      }
+
+      a[data-active] {
+        color: var(--accent);
+      }
+
+      li[data-group] details:not([open]):has(a[data-active]) summary a {
+        color: var(--accent);
+      }
+    }
+  }
+
+  /* 双 SVG 绕行轨道：muted 底轨全程，active 叠轨经 clip-path 只显示当前
+     高亮行区段。绝对定位于 ul 滚动内容左上角，随内容一起滚动。 */
+  .toc-rail {
+    display: none;
+
+    @media (width >= 64rem) {
+      display: block;
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      width: 40.5px;
+      pointer-events: none;
+
+      svg {
+        /* 双轨必须叠在同一位置：绝对定位退出普通流，也避免堆叠撑高滚动区 */
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        display: block;
+
+        path {
+          fill: none;
+          stroke-width: 1;
+        }
+      }
+
+      .rail-muted path {
+        stroke: var(--ring);
+      }
+
+      .rail-active {
+        /* 高亮带随活动行平滑滑动（同 CF 的 0.3s；reduced-motion 由全局
+           reset 的 transition-duration 兜底） */
+        transition: clip-path 0.5s ease;
+      }
+
+      .rail-active path {
+        stroke: var(--accent);
+      }
     }
   }
 </style>
@@ -373,6 +467,119 @@ const locale = localeFromPath(Astro.url.pathname)
       }
     })
 
+    /* ── 桌面绕行轨道（≥64rem，复刻 CF blog TOC）────────────────────── */
+    const desktop = matchMedia("(width >= 64rem)")
+    const railLayer = list.querySelector<HTMLElement>(":scope > .toc-rail")
+    const railMuted = railLayer?.querySelector<SVGSVGElement>("svg.rail-muted")
+    const railActive =
+      railLayer?.querySelector<SVGSVGElement>("svg.rail-active")
+    const LANE_X = 8.5
+    const LANE_STEP = 8
+    const LANE_MAX = 3
+    const RAIL_W = LANE_X + LANE_STEP * LANE_MAX + 8
+    const LEAD = 6
+    type RailRow = {
+      x: number
+      t: number
+      b: number
+      link: HTMLAnchorElement
+    }
+    let railRows: RailRow[] = []
+    let clipShown = false
+
+    const buildRail = () => {
+      if (!railLayer || !railMuted || !railActive) return
+      const rows: RailRow[] = []
+      if (desktop.matches) {
+        // 先置 0 再度量，避免绝对定位轨道撑高自身容器形成反馈环
+        railLayer.style.height = "0px"
+        const base = list.getBoundingClientRect()
+        for (const a of list.querySelectorAll<HTMLAnchorElement>(
+          "a[href^='#']",
+        )) {
+          // 折叠 details 的子项保留布局盒但不渲染，须过滤掉以免幽灵节点
+          if (!a.checkVisibility()) continue
+          const r = a.getBoundingClientRect()
+          if (r.height === 0) continue
+          const lane = Math.max(
+            0,
+            Math.min(
+              LANE_MAX,
+              Math.round((r.left - base.left - LANE_X - 8) / LANE_STEP),
+            ),
+          )
+          rows.push({
+            x: LANE_X + lane * LANE_STEP,
+            t: r.top - base.top + list.scrollTop,
+            b: r.bottom - base.top + list.scrollTop,
+            link: a,
+          })
+        }
+      }
+
+      let d = ""
+      rows.forEach((row, i) => {
+        if (i === 0) {
+          // 首行靠近顶部时收窄 lead-in，避免负坐标被滚动容器裁掉
+          d += ` M${row.x} ${Math.max(0, row.t - LEAD)} L${row.x} ${row.b}`
+          return
+        }
+        const prev = rows[i - 1]
+        if (row.x !== prev.x) {
+          // 换道：三次贝塞尔 S 形过渡（控制点取 2/3 处，同 CF）
+          const c = (row.t - prev.b) * (2 / 3)
+          d += ` C ${prev.x} ${prev.b + c} ${row.x} ${row.t - c} ${row.x} ${row.t}`
+        } else {
+          d += ` L${row.x} ${row.t}`
+        }
+        d += ` L${row.x} ${row.b}`
+      })
+
+      const h = rows.length ? rows[rows.length - 1].b + LEAD : 0
+      railLayer.style.height = `${h}px`
+      for (const svg of [railMuted, railActive]) {
+        svg.setAttribute("viewBox", `0 0 ${RAIL_W} ${h}`)
+        svg.setAttribute("width", String(RAIL_W))
+        svg.setAttribute("height", String(h))
+        svg.querySelector("path")?.setAttribute("d", d)
+      }
+      railRows = rows
+      // 重建后行坐标整体位移，高亮带直接就位、不做滑动
+      updateRailClip(false)
+    }
+
+    const updateRailClip = (animate = true) => {
+      if (!railActive) return
+      const act = railRows.filter((row) => row.link.hasAttribute("data-active"))
+      if (!act.length) {
+        railActive.style.visibility = "hidden"
+        clipShown = false
+        return
+      }
+      const top = act[0].t
+      const bottom = act[act.length - 1].b
+      const clip = `polygon(0px ${top}px, 100% ${top}px, 100% ${bottom}px, 0px ${bottom}px)`
+      // 首次出现（此前隐藏）直接定位，不从旧位置滑出
+      if (!clipShown) animate = false
+      railActive.style.visibility = ""
+      clipShown = true
+      if (animate) {
+        railActive.style.clipPath = clip
+      } else {
+        railActive.style.transition = "none"
+        railActive.style.clipPath = clip
+        railActive.getBoundingClientRect() // 强制回流，使无过渡写入立即生效
+        railActive.style.transition = ""
+      }
+    }
+
+    desktop.addEventListener("change", buildRail)
+    // toggle 不冒泡，须在容器上捕获；分组折叠/展开与自动展开都经此重建
+    list.addEventListener("toggle", buildRail, true)
+    new ResizeObserver(buildRail).observe(list)
+    document.fonts.ready.then(buildRail)
+    buildRail()
+
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (entry.target === heading) {
@@ -419,6 +626,7 @@ const locale = localeFromPath(Astro.url.pathname)
       }
       prevActive = activeTargets
       if (grew) center()
+      updateRailClip()
     })
 
     for (const block of sectionOf.keys()) observer.observe(block)
