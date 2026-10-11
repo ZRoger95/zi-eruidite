@@ -1,0 +1,85 @@
+---
+import type { HairlineFigureName } from "@/lib/hairline"
+
+type Props = {
+  /** 图形名，取值见 `src/lib/hairline.ts` 的注册表 */
+  figure: HairlineFigureName
+  /** 无障碍名称；不传则用包内置的英文描述 */
+  label?: string
+  /** 指针应答强度，0（克制）到 1（强烈）；默认 0.5 */
+  intensity?: number
+  /** 无指针时自行巡回演示，指针或焦点到来即交还控制权 */
+  play?: boolean
+  /** 宿主宽度（CSS 长度）；高度按包内置的 5:4 随动，不可改宽高比 ——
+   *  包把指针坐标按宿主矩形线性映射回 400×320 画布，改比例会让应答点错位 */
+  width?: string
+  /** 图形所坐的底色，覆盖 `--hairline-plate`（默认 `--background`） */
+  plate?: string
+}
+
+const { figure, label, intensity, play = false, width, plate } = Astro.props
+
+const style = [
+  width && `width: ${width}`,
+  plate && `--hairline-plate: ${plate}`,
+].filter(Boolean)
+---
+
+<hairline-figure
+  data-figure={figure}
+  data-label={label}
+  data-intensity={intensity}
+  data-play={play ? "true" : undefined}
+  style={style.length > 0 ? style.join("; ") : undefined}
+></hairline-figure>
+
+<script>
+  import { type HairlineFigureName, HAIRLINE_FIGURES } from "@/lib/hairline"
+  import type { Figure } from "@lucasmarkes/hairline"
+
+  /**
+   * 自主定制元素：把 SSR 出来的占位宿主交给 hairline 的 vanilla 工厂绘制。
+   * 断开连接时销毁，重连（如客户端路由切换）时重新挂载。
+   */
+  class HairlineFigureElement extends HTMLElement {
+    #figure: Figure | null = null
+
+    connectedCallback(): void {
+      if (this.#figure) return
+      const name = this.dataset.figure as HairlineFigureName
+      const create = HAIRLINE_FIGURES[name]
+      if (!create) return
+
+      const intensity = Number(this.dataset.intensity)
+      this.#figure = create(this, {
+        label: this.dataset.label,
+        intensity: Number.isFinite(intensity) ? intensity : undefined,
+        play: this.dataset.play === "true",
+      })
+    }
+
+    disconnectedCallback(): void {
+      this.#figure?.destroy()
+      this.#figure = null
+    }
+  }
+
+  if (!customElements.get("hairline-figure")) {
+    customElements.define("hairline-figure", HairlineFigureElement)
+  }
+</script>
+
+<style>
+  hairline-figure {
+    /* 把 hairline 的六个主题变量映射到站点色板，随 light-dark() 自动明暗；
+       plate 必须等于图形所坐的底色（它用来遮挡后方的线），故取 --background。
+       个别图形落在别的底色上时，用组件的 plate prop 覆盖。 */
+    --hairline-plate: var(--background);
+    --hairline-hi: var(--foreground);
+    --hairline-edge: var(--gray-9);
+    --hairline-mid: var(--gray-7);
+    --hairline-lo: var(--gray-6);
+    /* 与站点 1px 细线语言对齐 */
+    --hairline-stroke: 1;
+  }
+</style>
