@@ -1,5 +1,6 @@
 ---
 import BlogCard from "@/components/BlogCard.astro"
+import ListingHead from "@/components/ListingHead.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
 import { getPosts } from "@/lib/content"
@@ -13,6 +14,13 @@ const posts = await getPosts()
     slot="head"
     title={t("zh", "blogTitle")}
     alternates={{ zh: "/blog", en: "/en/blog" }}
+  />
+  <ListingHead
+    kicker={`~/blog · ${posts.length} posts`}
+    title={t("zh", "blogTitle")}
+    desc={t("zh", "blogDesc")}
+    figure="drawer"
+    figureLabel="三层抽屉的归档柜，指针划过哪一层就抽出哪一层"
   />
   <ul>
     {posts.map((post) => <BlogCard post={post} />)}

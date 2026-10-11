@@ -6,7 +6,16 @@
  * `sideEffects: false` 的 ESM，用不到的图形会被 tree-shake 掉。
  * 想加新图形，在此 import 并登记即可（33 幅名字见包文档）。
  */
-import { type Figure, phosphor, riffle, sieve } from "@lucasmarkes/hairline"
+import {
+  type Figure,
+  drawer,
+  phosphor,
+  rail,
+  riffle,
+  settle,
+  sieve,
+  terrain,
+} from "@lucasmarkes/hairline"
 
 export const HAIRLINE_FIGURES = {
   /** 八张牌组成的牌阵：指针下的那张立起，邻牌依次前倾 */
@@ -15,6 +24,14 @@ export const HAIRLINE_FIGURES = {
   sieve,
   /** 七乘七余辉点阵：静止时自播放循环，指针划过的点像余辉一样渐隐 */
   phosphor,
+  /** 三层抽屉的归档柜：指针高度抽出一只，隔板上空空如也 */
+  drawer,
+  /** 一根衣架杆上七个空衣架：指针拂过依次侧让，最近的最大，随后回正 */
+  rail,
+  /** 十二块瓷砖歪斜散落在 hub 周围：指针靠近时滑正成一棵树，连线收拢 */
+  settle,
+  /** 基座上的八十一根立柱绕指针升起：intensity 决定升起的范围 */
+  terrain,
 } as const
 
 export type HairlineFigureName = keyof typeof HAIRLINE_FIGURES

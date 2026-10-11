@@ -1,0 +1,130 @@
+---
+import HairlineFigure from "@/components/HairlineFigure.astro"
+import type { HairlineFigureName } from "@/lib/hairline"
+
+type Props = {
+  /** 等宽小字路径串，如 `~/blog · 12 posts` */
+  kicker: string
+  /** 页面主标题，渲染为 `<h1>` */
+  title: string
+  /** 标题下的一句说明 */
+  desc?: string
+  /** 页头插图；不传则只渲染文字列 */
+  figure?: HairlineFigureName
+  /** 插图的无障碍名称，按当前语言传入 */
+  figureLabel?: string
+  /** 插图宿主宽度（CSS 长度）；高度按包内置的 5:4 随动，不可改宽高比 */
+  figureWidth?: string
+}
+
+/**
+ * 各图形墨迹的光学补偿实测值（px）。宿主盒按 5:4 留了大量透明内边距，
+ * 墨迹只占盒内中间一块，故不能按盒边对齐：
+ * - `mb`：负 margin-bottom 让宿主盒下挂，吃掉盒顶那段透明内边距，
+ *   页头高度随之收紧到文字块附近（宿主本身透明，不遮下方内容）
+ * - `ty`：再平移墨迹，使其光学中心与文字块中心齐平、且不压底部分隔线
+ * 未登记的图形按 0 处理。
+ */
+const INK_COMPENSATION: Partial<
+  Record<HairlineFigureName, { mb: number; ty: number }>
+> = {
+  // 176px 宿主下实测墨迹 87×105（宽仅占盒 49%，柜体瘦高）
+  drawer: { mb: -31, ty: -8 },
+  riffle: { mb: -33, ty: -11 },
+  phosphor: { mb: -18, ty: 10 },
+  // 176px 宿主下实测墨迹 100×113（杆件横陈所以扁宽，含立起的衣架后比文字块还高，
+  // 不能下挂，只把盒向上平移让墨迹中心对住文字块中心）
+  rail: { mb: 0, ty: 22 },
+  // 176px 宿主下跨自播放循环取 24 帧联合包围盒：墨迹 169×111，顶边贴盒顶
+  // （歪斜相位铺满全高，无可吃掉的透明内边距，故不下挂），盒上移 22px 后
+  // 墨迹光学中心与文字块中心误差 0.25px，静止态墨迹底距分隔线约 12px
+  settle: { mb: -18, ty: 22 },
+}
+
+const {
+  kicker,
+  title,
+  desc,
+  figure,
+  figureLabel,
+  figureWidth = "176px",
+} = Astro.props
+
+const ink = figure ? INK_COMPENSATION[figure] : undefined
+---
+
+<header class="listing-head">
+  <div class="listing-head-text">
+    <p class="listing-kicker">{kicker}</p>
+    <h1 class="listing-title">{title}</h1>
+    {desc && <p class="listing-desc">{desc}</p>}
+  </div>
+  {figure && (
+    <div
+      class="listing-head-figure"
+      style={`--ink-mb: ${ink?.mb ?? 0}px; --ink-ty: ${ink?.ty ?? 0}px`}
+    >
+      <HairlineFigure
+        figure={figure}
+        label={figureLabel}
+        width={figureWidth}
+        play
+      />
+    </div>
+  )}
+</header>
+
+<style>
+  .listing-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-m);
+    padding-bottom: var(--space-s);
+    margin-bottom: var(--space-l);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .listing-head-text {
+    min-width: 0;
+  }
+
+  .listing-head-figure {
+    flex-shrink: 0;
+    line-height: 0;
+    /* 补偿值由上面的 INK_COMPENSATION 按图形下发 */
+    margin-bottom: var(--ink-mb, 0px);
+    transform: translateY(var(--ink-ty, 0px));
+  }
+
+  .listing-kicker {
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    margin: 0 0 var(--space-3xs);
+  }
+
+  .listing-title {
+    font-size: var(--step-3);
+    font-weight: 610;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  .listing-desc {
+    margin: var(--space-2xs) 0 0;
+    font-size: var(--step--1);
+    line-height: 1.5;
+    color: var(--muted-foreground);
+  }
+
+  @media (width < 640px) {
+    /* 窄屏留给阅读栏，插图只在宽屏出现 */
+    .listing-head-figure {
+      display: none;
+    }
+  }
+</style>

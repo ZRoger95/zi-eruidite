@@ -66,10 +66,17 @@ const { name, description, link, tags, image, startDate, endDate } =
     > a {
       flex-shrink: 0;
       inline-size: 14rem;
+      overflow: hidden;
+      border-radius: var(--radius-md);
 
       :global(img) {
         inline-size: 100%;
         block-size: auto;
+        transition: transform 0.2s ease;
+      }
+
+      &:hover :global(img) {
+        transform: scale(1.03);
       }
     }
 
@@ -81,6 +88,12 @@ const { name, description, link, tags, image, startDate, endDate } =
         font-size: var(--step-1);
         line-height: calc(var(--leading-offset) + 1em);
         font-weight: var(--font-weight-medium);
+        transition: color 0.15s ease;
+
+        &:hover,
+        &:focus-visible {
+          color: var(--accent);
+        }
       }
 
       entry-meta {
@@ -96,12 +109,17 @@ const { name, description, link, tags, image, startDate, endDate } =
           display: flex;
           align-items: center;
           gap: var(--space-3xs);
+          /* 日期区间等宽化，与页头 kicker 的 mono 语言呼应 */
+          font-family: var(--font-mono);
+          font-size: calc(var(--step--1) - 1px);
         }
 
         project-link {
           display: flex;
           align-items: center;
           gap: var(--space-3xs);
+          font-family: var(--font-mono);
+          font-size: calc(var(--step--1) - 1px);
           color: color-mix(in oklab, var(--muted-foreground) 50%, transparent);
 
           svg {

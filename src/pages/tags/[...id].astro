@@ -1,5 +1,6 @@
 ---
 import BlogCard from "@/components/BlogCard.astro"
+import HairlineFigure from "@/components/HairlineFigure.astro"
 import MomentCard from "@/components/MomentCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
@@ -44,6 +45,21 @@ const allItems = [
     description={`标注为 #${tag} 的内容。`}
     noindex
   />
+  <header class="tags-head">
+    <div class="tags-head-text">
+      <p class="tags-kicker">~/tags · #{tag}</p>
+      <h1 class="tags-title">#{tag}</h1>
+      <p class="tags-desc">标注为 #{tag} 的内容。</p>
+    </div>
+    <div class="tags-head-figure">
+      <HairlineFigure
+        figure="phosphor"
+        label="七乘七余辉点阵，像散落的标签，指针划过时依次亮起"
+        width="176px"
+        play
+      />
+    </div>
+  </header>
   <div class="tag-page">
     {allItems.length === 0 && <p class="empty">暂无标注 #{tag} 的内容。</p>}
     {allItems.map((item) =>
@@ -57,6 +73,52 @@ const allItems = [
 </Layout>
 
 <style>
+  .tags-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-m);
+    padding-bottom: var(--space-s);
+    margin-bottom: var(--space-l);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tags-head-text {
+    min-width: 0;
+  }
+
+  .tags-head-figure {
+    flex-shrink: 0;
+    line-height: 0;
+    /* 与 index 页头一致：phosphor 墨迹中心比文字块高约 16px，下移居中 */
+    margin-bottom: -18px;
+    transform: translateY(10px);
+  }
+
+  .tags-kicker {
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    margin: 0 0 var(--space-3xs);
+  }
+
+  .tags-title {
+    font-size: var(--step-3);
+    font-weight: 610;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  .tags-desc {
+    margin: var(--space-2xs) 0 0;
+    font-size: var(--step--1);
+    line-height: 1.5;
+    color: var(--muted-foreground);
+  }
+
   .tag-page {
     display: flex;
     flex-direction: column;
@@ -67,5 +129,12 @@ const allItems = [
   .empty {
     color: var(--muted-foreground);
     font-size: var(--step--1);
+  }
+
+  @media (width < 640px) {
+    /* 窄屏留给阅读栏，插图只在宽屏出现 */
+    .tags-head-figure {
+      display: none;
+    }
   }
 </style>

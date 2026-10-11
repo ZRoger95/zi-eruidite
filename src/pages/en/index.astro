@@ -1,5 +1,6 @@
 ---
 import BlogCard from "@/components/BlogCard.astro"
+import HairlineFigure from "@/components/HairlineFigure.astro"
 import MomentCard from "@/components/MomentCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
@@ -21,13 +22,23 @@ const moments = SITE.momentsOnHome
   <home-rails aria-hidden="true"></home-rails>
 
   <hero-card>
-    {SITE.avatar && (
-      <hero-avatar>
-        <img src={SITE.avatar} alt={`${SITE.title} avatar`} width="64" height="64" />
-      </hero-avatar>
-    )}
-    <h1>{t(locale, "heroGreeting")} {SITE.title}</h1>
-    {SITE.hero[locale].paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+    <hero-text>
+      {SITE.avatar && (
+        <hero-avatar>
+          <img src={SITE.avatar} alt={`${SITE.title} avatar`} width="64" height="64" />
+        </hero-avatar>
+      )}
+      <h1>{t(locale, "heroGreeting")} {SITE.title}</h1>
+      {SITE.hero[locale].paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+    </hero-text>
+    <hero-figure>
+      <HairlineFigure
+        figure="terrain"
+        label={t(locale, "heroFigureLabel")}
+        width="320px"
+        play
+      />
+    </hero-figure>
   </hero-card>
   <home-rule aria-hidden="true"></home-rule>
 
@@ -142,6 +153,11 @@ const moments = SITE.momentsOnHome
     text-align: center;
   }
 
+  /* 图形默认隐藏：窄屏与 sidebar 回退为居中堆叠的纯文字 hero */
+  hero-figure {
+    display: none;
+  }
+
   :root[data-layout="topbar"] hero-card h1 {
     font-style: italic;
     color: var(--accent);
@@ -156,6 +172,45 @@ const moments = SITE.momentsOnHome
   :root[data-layout="topbar"] hero-card,
   :root[data-layout="topbar"] latest-section {
     padding-inline: var(--space-m);
+  }
+
+  @media (width >= 64rem) {
+    /* 宽屏 topbar：hero 换「文字左 / 图形右」双栏页头，底边光学对齐，
+       与 ListingHead 的图文语言一致；窄屏不命中，保留居中堆叠回退 */
+    :root[data-layout="topbar"] hero-card {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: var(--space-m);
+      text-align: start;
+    }
+
+    :root[data-layout="topbar"] hero-card hero-text {
+      min-width: 0;
+    }
+
+    /* 居中排版时块级头像靠 margin 自动居中；双栏左对齐后改回行内块，
+       与 h1 同走文本对齐靠左 */
+    :root[data-layout="topbar"] hero-card hero-avatar {
+      display: inline-block;
+    }
+
+    :root[data-layout="topbar"] hero-card p {
+      margin-inline: 0;
+    }
+
+    /* 墨迹光学补偿：宿主盒固定 5:4、四周大量透明内边距，按墨迹联合盒
+       校准（同 ListingHead 套路）；320px 宿主下跨循环联合墨迹 237×159
+       （占盒宽 74%），mb=0 时墨迹底恒在文字块底上方 40px（随 flex
+       底对齐天然稳定），但两心齐平所需上移量随流体字号变化：
+       1024px 需 ≈22px、≥1215px（字号到顶）需 ≈37px，故用 vw 线性
+       拟合 + clamp；墨迹底距分隔带上缘始终 >90px，不压线 */
+    :root[data-layout="topbar"] hero-figure {
+      display: block;
+      flex-shrink: 0;
+      line-height: 0;
+      transform: translateY(clamp(-37px, calc(59px - 7.9vw), -21px));
+    }
   }
 </style>
 
