@@ -1,5 +1,5 @@
 ---
-import AuthorCard from "@/components/AuthorCard.astro"
+import ListingHead from "@/components/ListingHead.astro"
 import BlogCard from "@/components/BlogCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
@@ -18,7 +18,7 @@ export async function getStaticPaths() {
 type Props = { author: CollectionEntry<"authors"> }
 
 const { author } = Astro.props
-const { name, bio } = author.data
+const { name, bio, avatar } = author.data
 
 const posts = (await getPosts()).filter((post) =>
   post.data.authors.some((ref) => ref.id === author.id),
@@ -41,13 +41,16 @@ const entries = [
 ].sort((a, b) => b.date.getTime() - a.date.getTime())
 ---
 
-<Layout crumbs={[{ label: name, href: `/authors/${author.id}` }]}>
+<Layout>
   <MetaPage slot="head" title={`${name}（作者）`} description={bio} noindex />
-  <header>
-    <ul>
-      <AuthorCard author={author} />
-    </ul>
-  </header>
+  <div class="author-head">
+    <img src={avatar} alt={name} width="64" height="64">
+    <ListingHead
+      kicker={`~/authors/${author.id} · ${entries.length} entries`}
+      title={name}
+      desc={bio ?? undefined}
+    />
+  </div>
 
   <section>
     <h2>文章</h2>
@@ -76,8 +79,27 @@ const entries = [
 </Layout>
 
 <style>
-  header {
-    margin-block-end: var(--space-l);
+  .author-head {
+    position: relative;
+    /* 头像坐在分隔线上会一直伸到线下，给分隔线与「文章」留些呼吸 */
+    margin-block-end: var(--space-2xs);
+    /* 左侧留出头像列（64px + 间隙），负 margin 把整块拉回内容左缘 */
+    margin-inline-start: calc(-1 * (var(--space-s) + 64px));
+    padding-inline-start: calc(var(--space-s) + 64px);
+
+    img {
+      position: absolute;
+      inset-inline-start: 0;
+      /* 与作者名光学对齐：头像顶边下移「h1 行盒中心距容器顶 − 半像高」，
+         即 kicker 高 + 半行盒 − 32px；两端实测 328px→3.8px、1215px→10.3px，
+         线性拟合为 1.94px + 0.69vw */
+      inset-block-start: clamp(3.8px, 1.94px + 0.69vw, 10.3px);
+      border-radius: var(--radius-full);
+    }
+
+    :global(.listing-head) {
+      margin-bottom: 0;
+    }
   }
 
   section {
@@ -96,6 +118,20 @@ const entries = [
 
     > p {
       color: var(--muted-foreground);
+    }
+  }
+
+  @media (width < 52rem) {
+    /* 窄屏的页面内边距放不进 80px 的头像列（负 margin 会把头像推出
+       视口），改回正常流堆叠在页头上方，同 AuthorCard 窄屏行为 */
+    .author-head {
+      margin-inline-start: 0;
+      padding-inline-start: 0;
+
+      img {
+        position: static;
+        margin-block-end: var(--space-xs);
+      }
     }
   }
 </style>

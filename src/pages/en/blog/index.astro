@@ -1,5 +1,6 @@
 ---
 import BlogCard from "@/components/BlogCard.astro"
+import ListingHead from "@/components/ListingHead.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
 import { getPostViews } from "@/lib/content"
@@ -13,6 +14,13 @@ const posts = await getPostViews("en")
     slot="head"
     title={t("en", "blogTitle")}
     alternates={{ zh: "/blog", en: "/en/blog" }}
+  />
+  <ListingHead
+    kicker={`~/blog · ${posts.length} posts`}
+    title={t("en", "blogTitle")}
+    desc={t("en", "blogDesc")}
+    figure="drawer"
+    figureLabel="A three-drawer filing cabinet; the pointer's height pulls one open"
   />
   <ul>
     {posts.map((post) => <BlogCard post={post} />)}

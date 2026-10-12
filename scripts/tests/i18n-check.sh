@@ -143,8 +143,10 @@ assert_lacks dist/tags/site/index.html '> Tags <' "标签详情页面包屑中�
 assert_has dist/authors/index.html '<title>作者' "作者列表标题中文化"
 assert_has dist/authors/enscribe/index.html 'enscribe（作者）' "作者页 meta 标题中文化"
 assert_lacks dist/authors/enscribe/index.html '>Posts<' "作者页无残留英文小标题"
-assert_has dist/authors/enscribe/index.html 'aria-label="网站"' "作者卡社交 aria 中文化"
+# 个人页改版后不再嵌 AuthorCard，社交链接只在作者列表页出现，断言改指列表页
+assert_has dist/authors/index.html 'aria-label="网站"' "作者卡社交 aria 中文化"
 assert_has dist/projects/index.html '<title>项目' "项目页标题中文化"
+assert_has dist/projects/index.html 'data-figure="settle"' "项目页头有 settle 插图"
 assert_has dist/projects/index.html '至今' "项目卡进行中状态中文化"
 assert_lacks dist/index.html '>Latest posts<' "中文首页无残留英文标题"
 assert_has dist/en/index.html '>Latest posts<' "英文首页保留英文标题（字典）"
@@ -167,6 +169,16 @@ assert_has dist/blog/index.html 'href="https://example.com/rss.xml"' "zh 页 RSS
 # Ruling 12：原 '>博客<' 实际由导航标签满足，未覆盖页面标题，追加标题断言
 assert_has dist/blog/index.html '<title>博客 | ' "中文列表页面标题"
 assert_has dist/en/blog/index.html '<title>Blog | ' "英文列表页面标题"
+
+# ---------- 博客列表页头（ListingHead + hairline drawer） ----------
+assert_has dist/blog/index.html 'data-figure="drawer"' "中文列表页头有归档柜插图"
+assert_has dist/blog/index.html '<h1' "中文列表页有 h1"
+assert_has dist/blog/index.html '按时间浏览全部文章。' "中文列表页头说明中文化"
+assert_lacks dist/blog/index.html "A three-drawer filing cabinet" "中文页头不泄漏英文 aria 标签"
+assert_has dist/en/blog/index.html 'data-figure="drawer"' "英文列表页头有归档柜插图"
+assert_has dist/en/blog/index.html 'Every post, newest first.' "英文列表页头说明"
+assert_has dist/en/blog/index.html "A three-drawer filing cabinet" "英文页头 aria 标签为英文"
+assert_lacks dist/en/blog/index.html '按时间浏览全部文章' "英文页头不泄漏中文文案"
 
 # ---------- dev 翻译按钮：生产构建零痕迹（目录级断言，Task 3） ----------
 # 注：TranslateButton 的 scoped CSS 死码（`translate-dev` 类名）会随构建进入

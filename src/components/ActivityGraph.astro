@@ -1,4 +1,5 @@
 ---
+import HairlineFigure from "@/components/HairlineFigure.astro"
 import type { CollectionEntry } from "astro:content"
 import {
   buildYearData,
@@ -35,16 +36,24 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     <span data-caption
       >{formatCaption(currentYear, defaultData.stats, currentYear)}</span
     >
-    <label class="activity-year-label">
-      <span class="activity-sr-only">选择年份</span>
-      <select data-year-select>
-        {options.map((y) => (
-          <option value={y} selected={y === currentYear}>
-            {y === currentYear ? "今年" : y}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div class="activity-caption-side">
+      <HairlineFigure
+        figure="phosphor"
+        label="七乘七余辉点阵，指针划过时亮点渐隐"
+        width="96px"
+        intensity={0.7}
+      />
+      <label class="activity-year-label">
+        <span class="activity-sr-only">选择年份</span>
+        <select data-year-select>
+          {options.map((y) => (
+            <option value={y} selected={y === currentYear}>
+              {y === currentYear ? "今年" : y}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   </figcaption>
   <div class="activity-scroll">
     <div
@@ -175,6 +184,12 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     font-family: var(--font-mono);
     font-size: calc(var(--step--1) - 1px);
     color: var(--muted-foreground);
+  }
+
+  .activity-caption-side {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
   }
 
   .activity-year-label select {

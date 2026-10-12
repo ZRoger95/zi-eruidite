@@ -1,7 +1,9 @@
 ---
+import ListingHead from "@/components/ListingHead.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import ProjectCard from "@/components/ProjectCard.astro"
 import Layout from "@/layouts/Layout.astro"
+import { t } from "@/lib/i18n"
 import { getCollection } from "astro:content"
 
 const projects = (await getCollection("projects")).sort(
@@ -11,7 +13,14 @@ const projects = (await getCollection("projects")).sort(
 ---
 
 <Layout>
-  <MetaPage slot="head" title="项目" />
+  <MetaPage slot="head" title={t("zh", "projectsTitle")} />
+  <ListingHead
+    kicker={`~/projects · ${projects.length} projects`}
+    title={t("zh", "projectsTitle")}
+    desc={t("zh", "projectsDesc")}
+    figure="settle"
+    figureLabel="十二块瓷砖散落在 hub 周围，指针靠近时滑正成一棵树"
+  />
   <ul>
     {projects.map((project) => <ProjectCard project={project} />)}
   </ul>

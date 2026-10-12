@@ -1,14 +1,23 @@
 ---
 import AuthorCard from "@/components/AuthorCard.astro"
+import ListingHead from "@/components/ListingHead.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import Layout from "@/layouts/Layout.astro"
 import { getAuthors } from "@/lib/content"
+import { t } from "@/lib/i18n"
 
 const authors = await getAuthors()
 ---
 
 <Layout>
-  <MetaPage slot="head" title="作者" />
+  <MetaPage slot="head" title={t("zh", "authorsTitle")} />
+  <ListingHead
+    kicker={`~/authors · ${authors.length} people`}
+    title={t("zh", "authorsTitle")}
+    desc={t("zh", "authorsDesc")}
+    figure="rail"
+    figureLabel="一根衣架杆上的空衣架，指针拂过依次侧让"
+  />
   <ul>
     {authors.map((author) => <AuthorCard author={author} />)}
   </ul>
