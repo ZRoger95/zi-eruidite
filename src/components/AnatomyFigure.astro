@@ -1,0 +1,61 @@
+---
+import { plateHtml } from "@/lib/anatomy/iso-kit"
+import { BUILDERS } from "@/lib/anatomy/registry"
+
+type Props = {
+  slug: string
+}
+
+const { slug } = Astro.props
+const build = BUILDERS[slug]
+if (!build) throw new Error(`Unknown anatomy figure: ${slug}`)
+const { svg, data, chrome } = build()
+
+// The stage wraps the SVG and carries the live region; it is the interactive
+// surface the client mount attaches its listeners to. plateHtml supplies the
+// card corners, legend and caption around it.
+const stage =
+  `<div class="iso-stage" tabindex="0" role="group" aria-label="${chrome.aria}" aria-live="off">` +
+  `${svg}<span class="iso-live" data-live aria-live="polite"></span></div>`
+const plate = plateHtml({ ...chrome, body: stage })
+---
+
+<div class="iso">
+  <anatomy-figure
+    data-slug={slug}
+    data-state={JSON.stringify(data)}
+    set:html={plate}
+  ></anatomy-figure>
+</div>
+
+<script>
+  import { MOUNTS } from "@/lib/anatomy/registry-client"
+
+  /**
+   * Autonomous custom element: the SSR'd <anatomy-figure> already shows the whole
+   * machine (no JS needed); on connect this host-scopes the live mount by data-slug.
+   * Guarded against re-definition because View Transitions re-run body scripts, and
+   * torn down on disconnect so a background loop never outlives its page.
+   */
+  if (!customElements.get("anatomy-figure")) {
+    customElements.define(
+      "anatomy-figure",
+      class extends HTMLElement {
+        #handle: { destroy(): void } | null = null
+
+        connectedCallback(): void {
+          if (this.#handle) return
+          const slug = this.dataset.slug
+          const mount = slug ? MOUNTS[slug] : undefined
+          if (!mount) return
+          this.#handle = mount(this)
+        }
+
+        disconnectedCallback(): void {
+          this.#handle?.destroy()
+          this.#handle = null
+        }
+      },
+    )
+  }
+</script>
