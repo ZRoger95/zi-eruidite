@@ -81,10 +81,14 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 
 ### 组件与样式模式
 
-- **默认不使用 UI 框架**（无 React、Vue、Svelte）。交互逻辑优先通过原生 Web 组件
-  （`customElements.define()`）或 `<script>` 标签内联实现。若用户明确要求使用某个
-  框架（例如用 Vue 做小工具），可破例引入；推荐用 `defineCustomElement` 将组件
-  包装为自定义元素，以保持文章内容为纯 Markdown。
+- **文章与全站布局不使用 UI 框架**（无 React、Vue、Svelte）。交互逻辑优先通过原生 Web
+  组件（`customElements.define()`）或 `<script>` 标签内联实现。
+- **独立工具/实验路由**（如 `/tools/*`、`/labs/*`）允许使用框架 island（`client:load` /
+  `client:visible`）来试玩 Vue、React 等组件；每个路由独立选择框架，仅该页面加载对应
+  运行时，不影响全站产物。引入框架需用户明确要求，agent 不得为全站 layout 级别的 UI
+  引入框架。
+- 若需在文章内容中嵌入框架组件，用 `defineCustomElement` 将组件包装为自定义元素，
+  保持文章为纯 Markdown。
 - **不使用 CSS 框架**（无 Tailwind）。样式使用自主定制元素选择器 + CSS 自定义属性。
 - 页面布局使用 Utopia 12 列流体网格，通过 `--grid-max-width`、`--grid-gutter`、
   `--grid-columns` 和 `grid-column: x / y` 控制区域跨度。
