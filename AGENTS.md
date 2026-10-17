@@ -95,6 +95,10 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 - **滚动机制（Scroll）**：`topbar × ≥64rem` 下内容区独立滚动（`page-scroll` 承接滚动与
   `scrollbar-gutter`，滚动条只属于内容区），其余组合保持页面级滚动；依赖滚动的组件
   统一经 `src/lib/scroll.ts` 的「活跃滚动源」访问。
+- **组件用法文档**：可复用 / 交互组件（尤其遵循「SSR 静态内容 + 客户端激活」范式的自主
+  定制元素）的用法集中在 `docs/components/`，每个组件一篇、kebab-case 命名（如
+  [`eye-tracker.md`](docs/components/eye-tracker.md)）；目录约定与文档模板见
+  `docs/components/README.md`。新增此类组件时同步补一篇。
 
 ## 内容与资源规范
 

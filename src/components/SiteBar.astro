@@ -1,5 +1,6 @@
 ---
 import Logo from "@/assets/logo.svg"
+import EyeTracker from "@/components/EyeTracker.astro"
 import LanguageSwitch from "@/components/LanguageSwitch.astro"
 import LayoutToggle from "@/components/LayoutToggle.astro"
 import ThemeToggle from "@/components/ThemeToggle.astro"
@@ -32,6 +33,11 @@ const isArticle = stripped.startsWith("/blog/") && stripped !== "/blog/"
         <Logo />
         <span>{SITE.title}</span>
       </a>
+      <EyeTracker
+        logo
+        size={24}
+        label={locale === "zh" ? "会跟着指针的小眼睛" : "Eyes that follow the cursor"}
+      />
     </bar-brand>
     <nav>
       <ul>
@@ -179,6 +185,14 @@ const isArticle = stripped.startsWith("/blog/") && stripped !== "/blog/"
     display: contents;
   }
 
+  /* 侧栏轨（≥64rem）按列排品牌，吉祥物会成孤立行并改变品牌高度：隐藏；
+     窄屏品牌行为横排，小球内联在 logo 后，照常显示 */
+  @media (width >= 64rem) {
+    :root[data-layout="sidebar"] bar-brand eye-tracker {
+      display: none;
+    }
+  }
+
   :root[data-layout="sidebar"] bar-brand a {
     display: inline-flex;
     align-items: center;
@@ -316,6 +330,17 @@ const isArticle = stripped.startsWith("/blog/") && stripped !== "/blog/"
   /* 品牌/导航作为 site-bar 行的直接 flex 项（对应原 topbar-inner 的单行分配） */
   :root[data-layout="topbar"] bar-inner {
     display: contents;
+  }
+
+  :root[data-layout="topbar"] bar-brand {
+    /* 品牌簇：logo 链接 + 跟随指针的小眼睛吉祥物，水平居中对齐 */
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2xs);
+  }
+
+  :root[data-layout="topbar"] bar-brand eye-tracker {
+    flex-shrink: 0;
   }
 
   :root[data-layout="topbar"] bar-brand a {

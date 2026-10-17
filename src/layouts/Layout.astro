@@ -16,6 +16,7 @@ import "@/styles/icon-button.css"
 import "@/styles/bar.css"
 import "@/styles/shape.css"
 import "@/styles/anatomy.css"
+import "@/styles/eye-tracker.css"
 
 import Footer from "@/components/Footer.astro"
 import MetaHead from "@/components/MetaHead.astro"
@@ -62,7 +63,7 @@ const bgRepeat = bgStyle === "tile" ? "repeat" : "no-repeat"
     }) : undefined}
   >
     <a class="skip-link" href="#main-content">{t(locale, "skipLink")}</a>
-    <page-shell data-article={article || undefined}>
+    <page-shell data-article={article || undefined} data-eyt-frame>
       <page-nav>
         <SiteBar crumbs={crumbs}
           ><slot name="actions" slot="actions" /></SiteBar

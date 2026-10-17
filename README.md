@@ -215,6 +215,8 @@ Moments 是短形式的「动态」流：随手记录的想法、照片、阅读
 - [外观定制](docs/guides/visual-customization.md) —— 配色与 favicon
 - [国际化与翻译](docs/guides/i18n.md) —— 双语结构与翻译工作流
 - [部署指南](docs/guides/deployment.md) —— hexo 式部署全流程
+- [组件用法文档](docs/components/README.md) —— 可复用 / 交互组件的用法（每个组件一篇，
+  如 [EyeTracker](docs/components/eye-tracker.md)）
 - [AGENTS.md](AGENTS.md) / [CONTEXT.md](CONTEXT.md) —— 仓库结构、样式系统与领域术语
 
 ## License 与致谢
