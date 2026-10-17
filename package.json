@@ -22,7 +22,7 @@
     "@astrojs/sitemap": "^3.7.3",
     "@expressive-code/plugin-collapsible-sections": "^0.42.0",
     "@expressive-code/plugin-line-numbers": "^0.42.0",
-    "@lucasmarkes/hairline": "^0.5.0",
+    "@lucasmarkes/hairline": "^0.5.1",
     "astro": "^7.0.2",
     "github-slugger": "^2.0.0",
     "hast-util-select": "^6.0.4",
