@@ -1,0 +1,152 @@
+---
+import Layout from "@/layouts/Layout.astro"
+import ListingHead from "@/components/ListingHead.astro"
+import MetaPage from "@/components/MetaPage.astro"
+import { BUILDERS, FIGURES_META } from "@/lib/anatomy/registry"
+
+// 机器按 slug 枚举；标题、hint 用来在缩略卡上直接可读，
+// 具体机器的完整交互留到 /figures/<slug> 详情页
+const machines = Object.entries(FIGURES_META).map(([slug, meta]) => {
+  const build = BUILDERS[slug]
+  const svg = build ? build().svg : ""
+  return { slug, meta, svg }
+})
+---
+
+<Layout>
+  <MetaPage slot="head" title="插图" />
+  <ListingHead
+    kicker={`~/figures · ${machines.length} 幅`}
+    title="插图"
+    desc="站点用到的 anatomy 等距机器：把一个抽象概念画成一台看得懂的小机器。卡片是入口，点进去才是完整机器与实时读数。"
+    figure="drawer"
+    figureLabel="三层抽屉的归档柜，指针高度抽出一只"
+  />
+
+  <machine-section>
+    <h2>机器 · Anatomy</h2>
+    <p class="section-note">
+      缩略卡片展示机器预览；点开才进入完整交互，SSR 一次出全，无 JS 也能看全。
+    </p>
+    <machine-grid>
+      {machines.map(
+        ({ slug, meta, svg }) => (
+          <machine-card>
+            <a href={`/figures/${slug}`} class="machine-link">
+              <span class="machine-thumb iso" set:html={svg} />
+              <span class="machine-title">{meta.title}</span>
+              <span class="machine-slug">{slug}</span>
+              <span class="machine-hint">{meta.hint}</span>
+              <span class="machine-cta" aria-hidden="true">
+                查看详情 →
+              </span>
+            </a>
+          </machine-card>
+        ),
+      )}
+    </machine-grid>
+  </machine-section>
+</Layout>
+
+<style>
+  machine-section {
+    display: block;
+    margin-block: var(--space-l) 0;
+  }
+
+  machine-section h2 {
+    margin-block: 0 var(--space-2xs);
+  }
+
+  .section-note {
+    margin: 0;
+    font-size: var(--step--1);
+    line-height: 1.6;
+    color: var(--muted-foreground);
+  }
+
+  /* 一行 5 个：桌面固定 5 列，窄屏按 12rem 起 auto-fill 回退，
+     保证卡片文字在 328px 最小视口下仍可读 */
+  machine-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-s);
+    margin-block: var(--space-m) 0;
+  }
+
+  @media (width < 64rem) {
+    machine-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+    }
+  }
+
+  machine-card {
+    display: block;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .machine-link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3xs);
+    height: 100%;
+    padding: var(--space-xs);
+    color: inherit;
+    text-decoration: none;
+    box-shadow: 0 0 0 1px var(--gray-7);
+    transition: box-shadow 0.2s var(--anatomy-ease, ease);
+  }
+
+  .machine-link:hover,
+  .machine-link:focus-visible {
+    box-shadow: 0 0 0 1px var(--gray-9);
+  }
+
+  .machine-thumb {
+    display: block;
+    aspect-ratio: 10 / 7;
+    overflow: hidden;
+    margin-block-end: var(--space-2xs);
+    background: var(--anatomy-card, var(--background));
+    box-shadow: 0 0 0 1px var(--gray-6);
+  }
+
+  .machine-thumb :global(.iso-svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .machine-title {
+    font-weight: 600;
+    font-size: var(--step--1);
+    line-height: 1.3;
+    color: var(--accent);
+    text-wrap: balance;
+  }
+
+  .machine-slug {
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 1px);
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    overflow-wrap: anywhere;
+  }
+
+  .machine-hint {
+    font-size: calc(var(--step--1) - 1px);
+    line-height: 1.45;
+    color: var(--gray-11);
+    margin-block: var(--space-3xs) auto;
+  }
+
+  .machine-cta {
+    align-self: flex-end;
+    font-family: var(--font-mono);
+    font-size: calc(var(--step--1) - 2px);
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+  }
+</style>

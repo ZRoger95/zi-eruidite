@@ -1,0 +1,31 @@
+---
+import Layout from "@/layouts/Layout.astro"
+import MetaPage from "@/components/MetaPage.astro"
+import AnatomyFigure from "@/components/AnatomyFigure.astro"
+import { FIGURES_META } from "@/lib/anatomy/registry"
+
+export function getStaticPaths() {
+  return Object.entries(FIGURES_META).map(([slug, meta]) => ({
+    params: { slug },
+    props: { slug, meta },
+  }))
+}
+
+const { slug, meta } = Astro.props
+const crumbs = [
+  { label: "插图", href: "/figures" },
+  { label: meta.title, href: `/figures/${slug}` },
+]
+---
+
+<Layout crumbs={crumbs}>
+  <MetaPage slot="head" title={meta.title} />
+  <h1>{meta.title}</h1>
+  <AnatomyFigure slug={slug} />
+</Layout>
+
+<style>
+  h1 {
+    margin-block: 0 var(--space-m);
+  }
+</style>
