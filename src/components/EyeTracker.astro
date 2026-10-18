@@ -1,0 +1,148 @@
+---
+import {
+  boxSize,
+  DEFAULTS,
+  restFace,
+  SHAPES,
+  type EyeTrackerProps,
+} from "@/lib/eye-tracker"
+
+type Props = Partial<EyeTrackerProps> & {
+  /** 站点色板上把小球画成标记本身（体=墨、眼=底色），用作 logo 时的变体 */
+  logo?: boolean
+  /** 无障碍名称；不传则用默认「跟随指针的两眼小球」 */
+  label?: string
+}
+
+const {
+  follow = DEFAULTS.follow,
+  bounce = DEFAULTS.bounce,
+  size = DEFAULTS.size,
+  shape = DEFAULTS.shape,
+  eyes = DEFAULTS.eyes,
+  eyeScale = DEFAULTS.eyeScale,
+  eyeWidth = DEFAULTS.eyeWidth,
+  eyeRound = DEFAULTS.eyeRound,
+  eyeHeight = DEFAULTS.eyeHeight,
+  idle = DEFAULTS.idle,
+  logo = false,
+  label = "A ball with two eyes that follows the cursor",
+} = Astro.props
+
+// The whole face is resolved at build so the shipped HTML reads as a
+// face with no JS; the client only re-writes it each frame. body is the
+// outline the eyes are clipped to, restFace the two eyes sitting on it.
+const s = boxSize(size)
+const body = SHAPES[shape] ?? SHAPES.Ball
+const face = restFace({
+  follow,
+  bounce,
+  size,
+  shape,
+  eyes,
+  eyeScale,
+  eyeWidth,
+  eyeRound,
+  eyeHeight,
+  idle,
+})
+// One clipPath per instance: id must be unique within the document so a
+// wall of trackers never share (and clobber) each other's clipping path.
+const clip = `eyt-clip-${crypto.randomUUID().replace(/-/g, "")}`
+---
+
+<eye-tracker
+  class:list={logo && "logo-test"}
+  data-follow={follow}
+  data-bounce={bounce}
+  data-size={size}
+  data-shape={shape}
+  data-eyes={eyes}
+  data-eye-scale={eyeScale}
+  data-eye-width={eyeWidth}
+  data-eye-round={eyeRound}
+  data-eye-height={eyeHeight}
+  data-idle={idle ? "true" : undefined}
+>
+  <div class="eyt" style={`--eyt-size:${s}px`} role="img" aria-label={label}>
+    <svg
+      class="eyt-ball"
+      viewBox="0 0 100 100"
+      data-poke={idle ? undefined : true}
+    >
+      <defs>
+        <clipPath id={clip}>
+          <path class="eyt-clip" d={body} />
+        </clipPath>
+      </defs>
+      <path class="eyt-body" d={body} />
+      <g clip-path={`url(#${clip})`}>
+        {face.orbs.map((orb) => (
+          <g class="eyt-orb" transform={orb.transform}>
+            <rect
+              class="eyt-eye"
+              x={orb.rect.x}
+              y={orb.rect.y}
+              width={orb.rect.width}
+              height={orb.rect.height}
+              rx={orb.rect.rx}
+            />
+          </g>
+        ))}
+      </g>
+    </svg>
+    {idle ? null : (
+        <span class="eyt-say" aria-live="polite">
+          <span class="eyt-say-text" />
+          <span class="eyt-caret" />
+        </span>
+      )}
+  </div>
+</eye-tracker>
+
+<script>
+  import { mountEyeTracker, type EyeTrackerHandle } from "@/lib/eye-tracker"
+
+  /**
+   * Autonomous custom element: the SSR'd <eye-tracker> already shows the whole
+   * face (no JS needed); on connect the host hands its data-* knobs to the
+   * imperative mount and the loop takes over. Guarded against re-definition
+   * because View Transitions re-run body scripts, and torn down on disconnect
+   * so the requestAnimationFrame never outlives its page.
+   */
+  if (!customElements.get("eye-tracker")) {
+    customElements.define(
+      "eye-tracker",
+      class extends HTMLElement {
+        #handle: EyeTrackerHandle | null = null
+
+        static observedAttributes = [
+          "data-shape",
+          "data-idle",
+          "data-size",
+          "data-follow",
+          "data-bounce",
+          "data-eyes",
+          "data-eye-scale",
+          "data-eye-width",
+          "data-eye-round",
+          "data-eye-height",
+        ]
+
+        connectedCallback(): void {
+          if (this.#handle) return
+          this.#handle = mountEyeTracker(this)
+        }
+
+        attributeChangedCallback(name: string): void {
+          this.#handle?.attrChanged(name)
+        }
+
+        disconnectedCallback(): void {
+          this.#handle?.destroy()
+          this.#handle = null
+        }
+      },
+    )
+  }
+</script>

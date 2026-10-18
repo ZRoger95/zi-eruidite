@@ -240,6 +240,8 @@ The deploy script reuses a `.deploy_git/` cache; `rm -rf .deploy_git` resets it.
 - [i18n & translation](docs/guides/i18n.md) — bilingual structure and translation
   workflow
 - [Deployment](docs/guides/deployment.md) — the full hexo-style deployment guide
+- [Component guides](docs/components/README.md) — how to use reusable / interactive
+  components, one file each (e.g. [EyeTracker](docs/components/eye-tracker.md))
 - [AGENTS.md](AGENTS.md) / [CONTEXT.md](CONTEXT.md) — repo structure, style system and
   domain glossary
 

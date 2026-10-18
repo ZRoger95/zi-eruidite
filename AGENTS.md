@@ -81,10 +81,14 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 
 ### 组件与样式模式
 
-- **默认不使用 UI 框架**（无 React、Vue、Svelte）。交互逻辑优先通过原生 Web 组件
-  （`customElements.define()`）或 `<script>` 标签内联实现。若用户明确要求使用某个
-  框架（例如用 Vue 做小工具），可破例引入；推荐用 `defineCustomElement` 将组件
-  包装为自定义元素，以保持文章内容为纯 Markdown。
+- **文章与全站布局不使用 UI 框架**（无 React、Vue、Svelte）。交互逻辑优先通过原生 Web
+  组件（`customElements.define()`）或 `<script>` 标签内联实现。
+- **独立工具/实验路由**（如 `/tools/*`、`/labs/*`）允许使用框架 island（`client:load` /
+  `client:visible`）来试玩 Vue、React 等组件；每个路由独立选择框架，仅该页面加载对应
+  运行时，不影响全站产物。引入框架需用户明确要求，agent 不得为全站 layout 级别的 UI
+  引入框架。
+- 若需在文章内容中嵌入框架组件，用 `defineCustomElement` 将组件包装为自定义元素，
+  保持文章为纯 Markdown。
 - **不使用 CSS 框架**（无 Tailwind）。样式使用自主定制元素选择器 + CSS 自定义属性。
 - 页面布局使用 Utopia 12 列流体网格，通过 `--grid-max-width`、`--grid-gutter`、
   `--grid-columns` 和 `grid-column: x / y` 控制区域跨度。
@@ -95,6 +99,10 @@ Astro 组件使用 PascalCase，例如 `AuthorCard.astro`；TypeScript 工具模
 - **滚动机制（Scroll）**：`topbar × ≥64rem` 下内容区独立滚动（`page-scroll` 承接滚动与
   `scrollbar-gutter`，滚动条只属于内容区），其余组合保持页面级滚动；依赖滚动的组件
   统一经 `src/lib/scroll.ts` 的「活跃滚动源」访问。
+- **组件用法文档**：可复用 / 交互组件（尤其遵循「SSR 静态内容 + 客户端激活」范式的自主
+  定制元素）的用法集中在 `docs/components/`，每个组件一篇、kebab-case 命名（如
+  [`eye-tracker.md`](docs/components/eye-tracker.md)）；目录约定与文档模板见
+  `docs/components/README.md`。新增此类组件时同步补一篇。
 
 ## 内容与资源规范
 
@@ -183,10 +191,21 @@ Composer，生产构建零痕迹）：点击实时检测译文状态——无译
 内容根默认 `src/content/blog/`，可用 `TRANSLATE_DEV_CONTENT_ROOT` 覆盖
 （测试隔离用）。回归：`bash scripts/tests/translate-ui-check.sh`。
 
+### dev 收藏板布局编辑器
+
+`astro dev` 下 `/board` 板下有「保存布局」浮条（模式同 Moment Composer，生产
+ HTML 无 markup、无端点）：宽屏里拖拽/缩放/旋转/镜像/叠放后点击，浮条采集各
+ `board-piece[data-id]` 的几何 `POST /api/board/layout`，由 `patchBoardSource` 按 `id`
+ 逐字段改写 `src/data/board.ts`（保留注释与非几何字段，默认值不落字段，同值不重写）。
+写入目标默认 `src/data/board.ts`，可用 `BOARD_LAYOUT_SOURCE` 覆盖（测试隔离用）。
+详见 [docs/components/board.md](docs/components/board.md) §9。回归：
+`bash scripts/tests/board-source-patch-check.sh`（离线）与 `bash scripts/tests/board-layout-check.sh`（起停 dev server）。
+
 ## 测试与验证指南
 
 测试脚本位于 `scripts/tests/`（部署干跑 `deploy-check.sh`、i18n 回归
-`i18n-check.sh`、翻译脚本离线桩 `translate-check.sh`）。提交前至少运行
+`i18n-check.sh`、翻译脚本离线桩 `translate-check.sh`、收藏板渲染 `board-check.sh`、
+收藏板布局写回 `board-source-patch-check.sh`/`board-layout-check.sh`）。提交前至少运行
 `bun run format:check` 和 `bun run build`。
 若只使用 npm 工作流，对应命令为 `npm run format:check` 和 `npm run build`。
 涉及可视样式、排版或路由变化时，请在本地开发服务器中手动检查相关页面。

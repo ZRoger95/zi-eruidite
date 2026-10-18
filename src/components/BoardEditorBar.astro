@@ -1,0 +1,127 @@
+---
+import { t, type Locale } from "@/lib/i18n"
+
+type Props = {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+
+// dev-only：生产构建整块（markup + script）零痕迹，模式同 MomentComposer
+if (import.meta.env.PROD) return
+---
+
+<board-editor
+  data-saving={t(locale, "boardSaving")}
+  data-saved={t(locale, "boardSaved")}
+  data-error={t(locale, "boardSaveError")}
+>
+  <button type="button" class="board-save-btn">{t(locale, "boardSave")}</button>
+  <span class="board-save-status" role="status" aria-live="polite"></span>
+</board-editor>
+
+<style>
+  board-editor {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2xs);
+    margin-top: var(--space-2xs);
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+  }
+
+  .board-save-btn {
+    padding: 0.3rem 0.9rem;
+    color: var(--muted-foreground);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .board-save-btn:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .board-save-btn:disabled {
+    opacity: 0.55;
+    cursor: progress;
+  }
+
+  .board-save-status {
+    color: var(--muted-foreground);
+  }
+
+  /* 窄屏只读网格无从调整，编辑条一并隐藏（同 board-hint 惯例） */
+  @media (width < 64rem) {
+    board-editor {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  ;(() => {
+    const bar = document.querySelector<HTMLElement>("board-editor")
+    if (!bar) return
+    const btn = bar.querySelector<HTMLButtonElement>(".board-save-btn")
+    const status = bar.querySelector<HTMLElement>(".board-save-status")
+    if (!btn || !status) return
+
+    const num = (p: HTMLElement, name: string, def: number) => {
+      // --rot 带 deg 后缀（"-4deg"），parseFloat 天然剥掉
+      const v = parseFloat(p.style.getPropertyValue(name))
+      return Number.isFinite(v) ? v : def
+    }
+
+    btn.addEventListener("click", async () => {
+      const items = [...document.querySelectorAll<HTMLElement>("board-piece")]
+        .filter((p) => p.dataset.id)
+        .map((p) => ({
+          id: p.dataset.id as string,
+          x: num(p, "--x", 0),
+          y: num(p, "--y", 0),
+          rotate: num(p, "--rot", 0),
+          z: num(p, "--z", 0),
+          scale: num(p, "--s", 1),
+          flip: num(p, "--sx", 1) === -1,
+        }))
+      btn.disabled = true
+      status.textContent = bar.dataset.saving ?? "Saving…"
+      try {
+        const res = await fetch("/api/board/layout", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ items }),
+        })
+        const data = (await res.json().catch(() => null)) as {
+          updated?: number
+          skipped?: string[]
+          error?: string
+        } | null
+        if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`)
+        // updated 为 0（无变化）时服务端不写盘、不 reload，就地报数；
+        // 有变化则片刻后 full-reload，此文案只存活一瞬。skipped 为未知 id（已从数据中
+        // 删除/改名的陈旧物件），据实报出以免误以为“全部保存”
+        const skipped = data?.skipped?.length
+          ? `，跳过 ${data.skipped.length}`
+          : ""
+        status.textContent = `${bar.dataset.saved ?? "Saved"}（${
+          data?.updated ?? 0
+        }${skipped}）`
+      } catch (err) {
+        status.textContent = `${bar.dataset.error ?? "Save failed"}：${
+          (err as Error).message
+        }`
+      } finally {
+        btn.disabled = false
+      }
+    })
+  })()
+</script>

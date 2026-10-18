@@ -186,3 +186,8 @@ assert_lacks dist/en/blog/index.html '按时间浏览全部文章' "英文页头
 # 标记与端点字样两串。
 assert_dir_lacks dist 'data-translate-dev' "dist 无翻译按钮标记（生产零痕迹）"
 assert_dir_lacks dist 'api/translate' "dist 无翻译端点字样（生产零痕迹）"
+
+# ---------- 收藏板 /en/board（双语路由与切换） ----------
+assert_file dist/en/board/index.html "en 板产出"
+assert_has dist/en/board/index.html '<html lang="en"' "en 板 html lang"
+assert_has dist/en/board/index.html 'href="/board"' "en 板导航指回中文板块入口"

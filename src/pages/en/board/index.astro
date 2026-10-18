@@ -1,0 +1,24 @@
+---
+import Layout from "@/layouts/Layout.astro"
+import MetaPage from "@/components/MetaPage.astro"
+import ListingHead from "@/components/ListingHead.astro"
+import Board from "@/components/Board.astro"
+import { getBoardViews } from "@/lib/content"
+
+const items = await getBoardViews("en")
+---
+
+<Layout>
+  <MetaPage
+    slot="head"
+    title="Board"
+    description="A collage of stamps and tech-stack badges you can rearrange by dragging."
+    alternates={{ zh: "/board", en: "/en/board" }}
+  />
+  <ListingHead
+    kicker={`~/board · ${items.length} pieces`}
+    title="Board"
+    desc="Stamps (including custom stamps built from any image) and tech-stack badges, laid out on one board. Grab a piece and drag it anywhere to rearrange the collage."
+  />
+  <Board locale="en" />
+</Layout>

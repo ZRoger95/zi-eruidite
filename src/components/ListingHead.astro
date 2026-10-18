@@ -7,7 +7,7 @@ type Props = {
   kicker: string
   /** 页面主标题，渲染为 `<h1>` */
   title: string
-  /** 标题下的一句说明 */
+  /** 标题下的一句说明；字符串中的 `\n` 会渲染为换行 */
   desc?: string
   /** 页头插图；不传则只渲染文字列 */
   figure?: HairlineFigureName
@@ -119,6 +119,9 @@ const ink = figure ? INK_COMPENSATION[figure] : undefined
     font-size: var(--step--1);
     line-height: 1.5;
     color: var(--muted-foreground);
+    /* 让 desc 里的 \n 生效；长 URL 等无空格词仍按字符断行，不溢出 */
+    white-space: pre-line;
+    overflow-wrap: anywhere;
   }
 
   @media (width < 640px) {
