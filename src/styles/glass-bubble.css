@@ -1,0 +1,103 @@
+/* ══ Glass bubble ══════════════════════════════════════════
+   src/lib/glass-bubble.ts + src/components/GlassBubble.astro.
+   The photograph, the margin round it and the glass are one
+   WebGL canvas; the margin is left clear, so whatever the page
+   paints behind the element is the ground the ball casts its
+   shadow on. Bencho's .lqg rules, renamed onto the custom
+   element; the canvas fills a square host that stops at the
+   620px design size (PIC 440 + PAD 90 × 2) and shrinks with
+   the column below it — the pointer maths reads the live rect,
+   so scaling costs nothing. */
+glass-bubble {
+  display: grid;
+  place-items: center;
+  position: relative;
+  box-sizing: border-box;
+  width: min(100%, 620px);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  margin-block: var(--space-m) 0;
+}
+
+/* 无 JS / 无 WebGL 的静态半身：照片摆在画布同款的位置正中；现在图
+   按原始比例完整适配（装进 440/620 的方框、不裁切），圆角取轻值；
+   画布一出现就藏掉 */
+glass-bubble > img {
+  width: 71%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 0.8rem;
+}
+
+glass-bubble[data-active] > img {
+  display: none;
+}
+
+glass-bubble > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+glass-bubble > canvas[data-over="true"] {
+  cursor: grab;
+}
+
+glass-bubble > canvas[data-over="true"]:active {
+  cursor: grabbing;
+}
+
+/* ══ 收藏板原图预览（Board.astro 的 <dialog class="board-preview">）═══
+   双击邮票弹出：showModal 把原生 dialog 提升到顶层，板面 overflow:clip
+   关不住它。骨架由 SSR 渲染、泡与图由 JS 动态建——Astro scoped 样式选不中
+   动态元素，故 dialog 的呈现全住在这份全局 CSS 里（与玻璃泡同族）。 */
+dialog.board-preview {
+  box-sizing: border-box;
+  width: min(92vw, 620px + 2.5rem);
+  max-height: 92vh;
+  margin: auto;
+  padding: 1.25rem;
+  overflow: visible;
+  color: var(--foreground);
+  background: light-dark(#fff, #2b261f);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.35);
+}
+
+dialog.board-preview::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+/* 预览里的玻璃泡去掉页面级下边距，在 dialog 里居中 */
+dialog.board-preview glass-bubble {
+  margin-block: 0;
+}
+
+dialog.board-preview .preview-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  color: var(--muted-foreground);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+dialog.board-preview .preview-close:hover {
+  color: var(--accent);
+}
+
+dialog.board-preview .preview-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

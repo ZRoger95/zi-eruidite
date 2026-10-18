@@ -1,0 +1,57 @@
+---
+import { GLASS_DEFAULTS } from "@/lib/glass-bubble"
+
+type Props = {
+  /** 玻璃泡下的那张照片：本站资产 URL（`import x from "..."` 后取 `.src`，
+   *  svg 直接是字符串 URL）。Bencho 的 COW 占位不带图，这里必须自己指。 */
+  src: string
+  /** 无 JS / 无 WebGL 时静态照片的替代文本 */
+  alt?: string
+  /** 画布（role="img"）的无障碍名称 */
+  label?: string
+  /** 球直径 px，100–280 */
+  size?: number
+  /** 边缘折射强度 0–100 */
+  bend?: number
+  /** 边缘色散 0–40 */
+  fringe?: number
+  /** 照片圆角 px，0–60 */
+  corner?: number
+}
+
+const {
+  src,
+  alt = "",
+  label = GLASS_DEFAULTS.label,
+  size = GLASS_DEFAULTS.size,
+  bend = GLASS_DEFAULTS.bend,
+  fringe = GLASS_DEFAULTS.fringe,
+  corner = GLASS_DEFAULTS.corner,
+} = Astro.props
+---
+
+<glass-bubble
+  data-src={src}
+  data-label={label}
+  data-size={size}
+  data-bend={bend}
+  data-fringe={fringe}
+  data-corner={corner}
+>
+  <!-- SSR 静态半身：无 JS / 无 WebGL 时看到的就是这张照片本身；
+       客户端挂载出画布后由 [data-active] 把它藏掉（glass-bubble.css） -->
+  <img src={src} alt={alt} loading="lazy" decoding="async">
+</glass-bubble>
+
+<script>
+  import { registerGlassBubble } from "@/lib/glass-bubble-element"
+
+  /**
+   * Autonomous custom element（Bencho GlassBubble 的原生移植）：SSR 出静态
+   * 照片，挂载后换成一块 WebGL 画布 —— 照片被画进纹理，玻璃是着色器。旋钮
+   * 都读宿主的 data-*。注册住在 glass-bubble-element.ts，与收藏板双击预览
+   * 共用同一实现（那边动态建元素、带不上本组件的脚本）；守卫与生命周期
+   * 说明见该模块。
+   */
+  registerGlassBubble()
+</script>
