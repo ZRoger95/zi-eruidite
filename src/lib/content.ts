@@ -1,7 +1,9 @@
 import { SITE } from "@/consts"
+import type { ImageMetadata } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
 import { baseId, localeOf, type Locale } from "@/lib/i18n"
 import { isSubpost } from "@/lib/utils"
+import { BOARD_ITEMS, type L10n } from "@/data/board"
 
 export const pageTitle = (title: string) => `${title} | ${SITE.title}`
 
@@ -134,6 +136,65 @@ export async function getTags(): Promise<
         postsB.length - postsA.length || a.localeCompare(b),
     ),
   )
+}
+
+export type BoardView = {
+  /** baseId（中英配对键） */
+  id: string
+  kind: "stamp" | "badge"
+  /** 恒取锚点的图（几何与图与语言无关）；栅格图为 ImageMetadata，svg 为字符串 URL */
+  image: ImageMetadata | string
+  x: number
+  y: number
+  rotate: number
+  z: number
+  /** 邮票形状（viewBox 单位，默认 160×208 竖版；横版如 240×150） */
+  w: number
+  h: number
+  /** 徽章图标高度（px），缺省走 CSS 流体尺寸 */
+  size?: number
+  href?: string
+  /** 以下文案 locale 命中译文则取译文，否则回落 zh */
+  title: string
+  alt: string
+  denomination?: string
+  postmark?: string
+  /** en 孪生存在且非 draft */
+  translated: boolean
+}
+
+/** 取双语文案：命中译文则用译文，否则回落 zh。 */
+const pick = (text: L10n | undefined, locale: Locale) =>
+  text ? (locale === "en" && text.en ? text.en : text.zh) : undefined
+
+/**
+ * 收藏板物件展示视图。以 `BOARD_ITEMS` 为源（原 `board` 内容集合已迁出为纯数据
+ * 模块），几何（x/y/rotate/z/w/h）、`image`、`href` 与语言无关；文案按 locale 取
+ * 译文（无译文回落 zh）。过滤 `draft`，按 `z` 升序、再按 `id` 稳定排序。保留
+ * `async` 以维持既有 `await` 调用点；未来接后端时把数据源换成 `fetch` 即可。
+ */
+export async function getBoardViews(locale: Locale): Promise<BoardView[]> {
+  const views = BOARD_ITEMS.filter((item) => !item.draft).map(
+    (item): BoardView => ({
+      id: item.id,
+      kind: item.kind,
+      image: item.image,
+      x: item.x,
+      y: item.y,
+      rotate: item.rotate ?? 0,
+      z: item.z ?? 0,
+      w: item.w ?? 160,
+      h: item.h ?? 208,
+      size: item.size,
+      href: item.href,
+      title: pick(item.title, locale) ?? "",
+      alt: pick(item.alt, locale) ?? "",
+      denomination: pick(item.denomination, locale),
+      postmark: pick(item.postmark, locale),
+      translated: item.title.en !== undefined,
+    }),
+  )
+  return views.sort((a, b) => a.z - b.z || a.id.localeCompare(b.id))
 }
 
 export async function getMoments(): Promise<CollectionEntry<"moments">[]> {

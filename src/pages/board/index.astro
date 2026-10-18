@@ -1,0 +1,31 @@
+---
+import Layout from "@/layouts/Layout.astro"
+import MetaPage from "@/components/MetaPage.astro"
+import ListingHead from "@/components/ListingHead.astro"
+import Board from "@/components/Board.astro"
+import { getBoardViews } from "@/lib/content"
+
+const items = await getBoardViews("zh")
+
+const desc = `把喜欢的邮票（含把任意图装进邮票框的自定义邮票）与徽章摆在同一块板上，鼠标拖住即可自由重新摆放.
+参考:
+1. https://df.fenx.work/llm-things/
+2. https://marijanapav.com/stamps
+部分 svg 来自于 df.fenx.work/llm-things
+`
+---
+
+<Layout>
+  <MetaPage
+    slot="head"
+    title="收藏板"
+    description="把喜欢的邮票与技术栈徽章摆在同一块板上，随手拖拽重新摆放。"
+    alternates={{ zh: "/board", en: "/en/board" }}
+  />
+  <ListingHead
+    kicker={`~/board · ${items.length} 枚`}
+    title="收藏板"
+    desc={`${desc}`}
+  />
+  <Board locale="zh" />
+</Layout>

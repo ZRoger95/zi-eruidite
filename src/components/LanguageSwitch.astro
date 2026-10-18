@@ -12,10 +12,14 @@ const pathname = normalizePath(Astro.url.pathname) || "/"
 const locale = localeFromPath(pathname)
 const stripped = stripLocalePath(pathname)
 
-// Only pages with a bilingual twin get a switcher (home & blog);
+// Only pages with a bilingual twin get a switcher (home, blog, board);
 // zh-only sections (moments, projects, authors, tags) render nothing.
 const hasEnglishTwin =
-  stripped === "/" || stripped === "/blog" || stripped.startsWith("/blog/")
+  stripped === "/" ||
+  stripped === "/blog" ||
+  stripped.startsWith("/blog/") ||
+  stripped === "/board" ||
+  stripped.startsWith("/board/")
 if (!hasEnglishTwin) return
 
 const target = locale === "zh" ? "en" : "zh"

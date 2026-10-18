@@ -1,0 +1,1182 @@
+---
+import { Image } from "astro:assets"
+import type { ImageMetadata } from "astro"
+import { getBoardViews } from "@/lib/content"
+import { t, type Locale } from "@/lib/i18n"
+import type { HTMLAttributes } from "astro/types"
+
+type Props = {
+  locale: Locale
+} & HTMLAttributes<"div">
+
+const { locale, ...attrs } = Astro.props
+const views = await getBoardViews(locale)
+
+// 构建期按邮票宽高生成 SVG 矢量齿孔轮廓遮罩：白矩形减去沿四边/四角排的圆孔。
+// viewBox 尺寸 = 元素实际宽高比 → 等比缩放，圆孔不变椭圆，竖版/横版/方版都适配。
+const maskCache = new Map<string, string>()
+function stampMaskUrl(w: number, h: number): string {
+  const key = `${w}x${h}`
+  const hit = maskCache.get(key)
+  if (hit) return hit
+  const r = 6
+  const step = 16
+  const holes: string[] = []
+  for (let x = 0; x <= w; x += step) {
+    holes.push(`<circle cx="${x}" cy="0" r="${r}"/>`)
+    holes.push(`<circle cx="${x}" cy="${h}" r="${r}"/>`)
+  }
+  for (let y = step; y < h; y += step) {
+    holes.push(`<circle cx="0" cy="${y}" r="${r}"/>`)
+    holes.push(`<circle cx="${w}" cy="${y}" r="${r}"/>`)
+  }
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">` +
+    `<defs><mask id="s">` +
+    `<rect width="${w}" height="${h}" fill="#fff"/>` +
+    `<g fill="#000">${holes.join("")}</g>` +
+    `</mask></defs>` +
+    `<rect width="${w}" height="${h}" fill="#fff" mask="url(#s)"/>` +
+    `</svg>`
+  const url = `data:image/svg+xml,${encodeURIComponent(svg)}`
+  maskCache.set(key, url)
+  return url
+}
+---
+
+<stamp-board {...attrs} data-view="all" data-tool="drag">
+  <board-tabs role="group" aria-label={t(locale, "boardTabsLabel")}>
+    <button type="button" class="board-tab" data-view="all" aria-pressed="true">
+      {t(locale, "boardAll")}
+    </button>
+    <button
+      type="button"
+      class="board-tab"
+      data-view="stamp"
+      aria-pressed="false"
+    >
+      {t(locale, "boardStamps")}
+    </button>
+    <button
+      type="button"
+      class="board-tab"
+      data-view="badge"
+      aria-pressed="false"
+    >
+      {t(locale, "boardBadges")}
+    </button>
+  </board-tabs>
+  <board-grid>
+    {views.map((v) => {
+      const style = `--x:${v.x}; --y:${v.y}; --rot:${v.rotate}deg; --z:${v.z}`
+      return (
+        <board-piece
+          data-kind={v.kind}
+          style={style}
+          role="group"
+          aria-label={v.title}
+        >
+          {v.kind === "stamp" ? (
+            <span
+              class="stamp"
+              style={`--stamp-w:${v.w}; --stamp-ar:${v.w} / ${v.h}; --stamp-mask:url("${stampMaskUrl(v.w, v.h)}")`}
+            >
+              <span class="stamp-paper">
+                <Image
+                  src={v.image as ImageMetadata}
+                  alt={v.alt}
+                  class="stamp-img"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </span>
+              {v.denomination && <span class="stamp-denom">{v.denomination}</span>}
+              {v.postmark && <span class="stamp-postmark">{v.postmark}</span>}
+            </span>
+          ) : (
+            <span class="badge">
+              {v.href ? (
+                <a
+                  href={v.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  draggable="false"
+                >
+                  <img
+                    src={typeof v.image === "string" ? v.image : v.image.src}
+                    alt={v.alt}
+                    class="badge-img"
+                    style={v.size ? `--badge-h:${v.size}px` : undefined}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </a>
+              ) : (
+                <img
+                  src={typeof v.image === "string" ? v.image : v.image.src}
+                  alt={v.alt}
+                  class="badge-img"
+                  style={v.size ? `--badge-h:${v.size}px` : undefined}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <span class="badge-title">{v.title}</span>
+            </span>
+          )}
+        </board-piece>
+      )
+    })}
+  </board-grid>
+  <!-- 物件外上角的径向操作浮层：右键 / 长按 / 键盘（Tab 到物件按 Enter 或菜单键）唤起。
+       默认 hidden，位置与展开由客户端算；无 JS 时整块不出现，板下提示行同理。
+       按钮不再从底部工具条克隆（工具条已撤），图标就这一份。 -->
+  <board-menu role="toolbar" aria-label={t(locale, "boardMenuLabel")} hidden>
+    <button
+      type="button"
+      class="menu-btn"
+      data-op="zoom-in"
+      aria-label={t(locale, "boardZoomIn")}
+      title={t(locale, "boardZoomIn")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m21 21-4.3-4.3" />
+        <path d="M11 8v6" />
+        <path d="M8 11h6" />
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="menu-btn"
+      data-op="zoom-out"
+      aria-label={t(locale, "boardZoomOut")}
+      title={t(locale, "boardZoomOut")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m21 21-4.3-4.3" />
+        <path d="M8 11h6" />
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="menu-btn"
+      data-op="rotate-ccw"
+      aria-label={t(locale, "boardRotateCcw")}
+      title={t(locale, "boardRotateCcw")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="menu-btn"
+      data-op="rotate-cw"
+      aria-label={t(locale, "boardRotateCw")}
+      title={t(locale, "boardRotateCw")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+        <path d="M21 3v5h-5" />
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="menu-btn"
+      data-op="mirror"
+      aria-label={t(locale, "boardMirror")}
+      title={t(locale, "boardMirror")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3" />
+        <path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3" />
+        <path d="M12 3v3" />
+        <path d="M12 10.5v3" />
+        <path d="M12 18v3" />
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="menu-btn"
+      data-op="front"
+      aria-label={t(locale, "boardBringFront")}
+      title={t(locale, "boardBringFront")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M4 4h16" />
+        <path d="M12 20V9" />
+        <path d="m7 13 5-5 5 5" />
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="menu-btn"
+      data-op="back"
+      aria-label={t(locale, "boardSendBack")}
+      title={t(locale, "boardSendBack")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M4 20h16" />
+        <path d="M12 4v11" />
+        <path d="m7 11 5 5 5-5" />
+      </svg>
+    </button>
+  </board-menu>
+  <!-- 板下提示行：只在客户端激活后出现（stamp-board[data-interactive]），
+       不然无 JS 时它在承诺一个不存在的交互 -->
+  <board-hint>{t(locale, "boardHint")}</board-hint>
+</stamp-board>
+
+<style>
+  stamp-board {
+    --perf: 6px; /* 齿孔半径 */
+    --gap: 15px; /* 齿孔间距 */
+    --menu-r: 74px; /* 径向浮层半径（圆心 = 选中件外上角；JS 靠它算翻转，须用 px） */
+    --menu-btn: 30px; /* 径向浮层按钮直径 */
+    --stamp-unit: clamp(
+      0.82px,
+      0.13vw,
+      1.2px
+    ); /* viewBox 单位→屏幕像素的缩放因子 */
+    --paper: #fff; /* 邮票纸面：纯白 */
+    --ink: #2a2a2a; /* 纸面墨色（面值/邮戳） */
+    --grid-line: color-mix(in oklab, var(--border) 40%, transparent);
+    display: block;
+    box-sizing: border-box;
+    /* 浮层的定位宿主（必须：菜单要溢出 board-grid 的 overflow:clip） */
+    position: relative;
+    margin-block: var(--space-m) 0;
+  }
+
+  /* 板面：网格画布，承载可拖拽物件（分类标签栏位于其上方） */
+  board-grid {
+    display: block;
+    position: relative;
+    /* 独立层叠上下文：「叠到最下」会把 --z 减到负数，若不成上下文，负 z 物件会
+       沉到板面背景之下整枚消失；成上下文后负 z 仍画在背景上、其余物件下 */
+    isolation: isolate;
+    box-sizing: border-box;
+    min-height: clamp(28rem, 66vh, 46rem);
+    padding: var(--space-m);
+    border-radius: var(--radius-md, 0.5rem);
+    background-color: light-dark(
+      #f5f5f4,
+      #26221c
+    ); /* 中性浅灰板面（亮）/ 中性深底（暗），白邮票四边自然有对比 */
+    /* 极淡网格：贴 Utopia 网格调性，随明暗自适应 */
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 2rem 2rem;
+    overflow: clip;
+  }
+
+  board-piece {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    top: calc(var(--y) * 100%);
+    z-index: var(--z, 0);
+    transform: rotate(var(--rot, 0deg)) scale(var(--s, 1)) scaleX(var(--sx, 1));
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+
+  /* 邮票外壳：用构建期生成的 SVG 矢量齿孔轮廓做 mask —— 齿孔与四角是矢量、
+     任意尺寸都锐利；固定 160:208 比例使等比缩放不变形。内容仍是任意图片。 */
+  .stamp {
+    position: relative;
+    display: block;
+    box-sizing: border-box;
+    width: calc(var(--stamp-w) * var(--stamp-unit));
+    aspect-ratio: var(--stamp-ar);
+    padding: 0.8rem;
+    background: var(--paper);
+    filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.35))
+      drop-shadow(0 5px 9px rgb(0 0 0 / 0.2))
+      drop-shadow(0 1px 2px rgb(0 0 0 / 0.15));
+    -webkit-mask: var(--stamp-mask) center / 100% 100% no-repeat;
+    mask: var(--stamp-mask) center / 100% 100% no-repeat;
+  }
+
+  .stamp-paper {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--paper) 70%, #fff);
+  }
+
+  .stamp-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .stamp-denom {
+    position: absolute;
+    right: calc(var(--perf) + 0.4rem);
+    bottom: calc(var(--perf) + 0.3rem);
+    padding: 0.05rem 0.3rem;
+    color: var(--paper);
+    background: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+
+  .stamp-postmark {
+    position: absolute;
+    top: calc(var(--perf) + 0.35rem);
+    left: calc(var(--perf) + 0.5rem);
+    padding: 0.1rem 0.45rem;
+    color: var(--ink);
+    border: 1px dashed var(--ink);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    transform: rotate(-12deg);
+    opacity: 0.72;
+  }
+
+  /* 徽章外壳：随图标形状、不套死框 */
+  .badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    width: max-content;
+  }
+
+  .badge a {
+    display: block;
+    line-height: 0;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .badge-img {
+    display: block;
+    /* 横版字标可用条目的 `size` 字段经 --badge-h 压小高度（宽度按比例走） */
+    height: var(--badge-h, clamp(3.5rem, 6vw, 5rem));
+    width: auto;
+    filter: drop-shadow(0 2px 5px rgb(0 0 0 / 0.22));
+  }
+
+  .badge-title {
+    font-size: var(--step--1);
+    line-height: 1.2;
+    color: var(--muted-foreground);
+    text-align: center;
+    /* 默认隐形但保留占位：不改变盒子尺寸，拖拽边界与 aria-label（在 board-piece 上）不受影响 */
+    opacity: 0;
+    transition: opacity 0.15s var(--anatomy-ease, ease);
+  }
+
+  /* hover / 径向浮层选中 / 拖拽时标题浮现；触屏无 hover，由 selected 兜底 */
+  board-piece:hover .badge-title,
+  board-piece[data-selected] .badge-title,
+  board-piece[data-dragging] .badge-title {
+    opacity: 1;
+  }
+
+  /* 分类标签：板面上方的「文件夹分隔标签」（全部 / 邮票 / 徽章）——
+     圆角只在顶部、底边敞开接进板面，标签互相叠压，选中项抬到最前（实线描边）。 */
+  board-tabs {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    position: relative;
+    z-index: 2;
+  }
+
+  .board-tab {
+    position: relative;
+    margin-left: -0.6rem;
+    padding: 0.5rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tab-muted-fg);
+    background: var(--tab-muted-bg);
+    border: 1.5px dashed var(--tab-muted-fg);
+    border-bottom-color: transparent;
+    border-radius: 0.6rem 0.6rem 0 0;
+    box-shadow: 2px 0 5px rgb(0 0 0 / 0.1);
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .board-tab:first-child {
+    margin-left: 0;
+  }
+
+  /* 每枚一组柔和色（明暗自适应）：全部=琥珀 / 邮票=绿 / 徽章=蓝；
+     bg/fg 为选中态实色，muted-bg/muted-fg 为未选中态淡色；z 左高右低形成叠压。 */
+  .board-tab:nth-child(1) {
+    z-index: 5;
+    --tab-bg: light-dark(#f6deb6, #6a5227);
+    --tab-fg: light-dark(#b8791f, #f6deb6);
+    --tab-muted-bg: light-dark(#fcf3e5, #2e2717);
+    --tab-muted-fg: light-dark(#a9791f, #cda24f);
+  }
+  .board-tab:nth-child(2) {
+    z-index: 4;
+    --tab-bg: light-dark(#d3eec9, #3a5230);
+    --tab-fg: light-dark(#3f7d34, #d3eec9);
+    --tab-muted-bg: light-dark(#f2faef, #22291c);
+    --tab-muted-fg: light-dark(#5a8a48, #9cc488);
+  }
+  .board-tab:nth-child(3) {
+    z-index: 3;
+    --tab-bg: light-dark(#c3deee, #2f4a63);
+    --tab-fg: light-dark(#3568a8, #c3deee);
+    --tab-muted-bg: light-dark(#edf5fa, #1e2733);
+    --tab-muted-fg: light-dark(#4a7ba8, #8bb2d0);
+  }
+
+  /* 悬停：未选中标签提前“抽出”（抬到邻标签之上、转实色） */
+  .board-tab:hover {
+    z-index: 8;
+    color: var(--tab-fg);
+    background: var(--tab-bg);
+    border-style: solid;
+    border-color: var(--tab-fg);
+    border-bottom-color: transparent;
+  }
+
+  /* 选中：抬到最前、实线描边、满色 */
+  .board-tab[aria-pressed="true"] {
+    z-index: 10;
+    color: var(--tab-fg);
+    background: var(--tab-bg);
+    border-style: solid;
+    border-color: var(--tab-fg);
+    border-bottom-color: transparent;
+  }
+
+  /* 键盘焦点：内收描边，避免焦点环探出底边落在板面上破坏贴合感 */
+  .board-tab:focus-visible {
+    outline-offset: -3px;
+  }
+
+  /* 选中态：虚线描边圈住整枚物件（仅宽屏浮层可产生选中） */
+  board-piece[data-selected] {
+    outline: 2px dashed var(--accent);
+    outline-offset: 5px;
+  }
+
+  /* 键盘入口：物件本身可聚焦（Tab 走到 → Enter / 菜单键 唤出浮层），
+     焦点环跟全站 accent 一致；:focus-visible 保证鼠标点按不显环 */
+  board-piece:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 5px;
+  }
+
+  /* 板下提示行：取代原工具条的可发现性，只在客户端激活后亮出来 */
+  board-hint {
+    display: none;
+    margin-top: var(--space-2xs);
+    color: var(--muted-foreground);
+    font-size: var(--step--1);
+    text-align: center;
+  }
+
+  stamp-board[data-interactive] board-hint {
+    display: block;
+  }
+
+  /* 径向浮层：零尺寸锚点摆在选中件外上角，7 枚圆钮沿半圆展开（右半圆放不下时
+     翻到左半圆，角度由 JS 写 --a）。放在 stamp-board 下而非 board-grid 内，
+     否则会被板面 overflow:clip 切掉。 */
+  board-menu {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 30;
+    width: 0;
+    height: 0;
+  }
+
+  board-menu[hidden] {
+    display: none;
+  }
+
+  board-menu .menu-btn {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: grid;
+    place-items: center;
+    width: var(--menu-btn);
+    height: var(--menu-btn);
+    color: var(--muted-foreground);
+    background: light-dark(#fff, #2b261f);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.14);
+    cursor: pointer;
+    /* 绕圆心散开：转角度→沿新轴外推半径→反向旋转回水平→自身居中 */
+    transform: rotate(var(--a, 0deg)) translate(var(--menu-r))
+      rotate(calc(-1 * var(--a, 0deg))) translate(-50%, -50%);
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  board-menu .menu-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: color-mix(
+      in oklab,
+      var(--accent) 12%,
+      light-dark(#fff, #2b261f)
+    );
+  }
+
+  board-menu .menu-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* 弹出：从圆心一点散开到位，逐枚错峰 */
+  @keyframes board-menu-pop {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.4);
+    }
+    to {
+      opacity: 1;
+      transform: rotate(var(--a, 0deg)) translate(var(--menu-r))
+        rotate(calc(-1 * var(--a, 0deg))) translate(-50%, -50%) scale(1);
+    }
+  }
+
+  board-menu .menu-btn.menu-pop {
+    animation: board-menu-pop 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--pop-delay, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    board-menu .menu-btn.menu-pop {
+      animation: none;
+    }
+  }
+
+  /* 按视图过滤：只留对应 kind（全部=不隐藏） */
+  stamp-board[data-view="stamp"] board-piece[data-kind="badge"],
+  stamp-board[data-view="badge"] board-piece[data-kind="stamp"] {
+    display: none;
+  }
+
+  /* 切换标签时的入场：滑入——从左边板外掠进来、逐渐减速，靠惯性冲过静止位
+     一点点，末尾再慢慢渗回静止位（余滑停顿，收尾带一点延迟感）。
+     板面 overflow:clip 会在物件还在板外时把它裁掉，营造从边外飞入的效果；
+     每枚的延迟由 JS 写入 --enter-delay 做错峰，一枚接一枚滑入。 */
+  @keyframes board-toss {
+    0% {
+      opacity: 0;
+      transform: translate(-165%, -12%) rotate(calc(var(--rot, 0deg) - 20deg))
+        scale(var(--s, 1)) scaleX(var(--sx, 1));
+      animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    12% {
+      opacity: 1;
+    }
+    /* 余滑：冲过静止位一点，随后尾段慢速渗回（延迟停顿） */
+    82% {
+      transform: translate(3%, 0) rotate(calc(var(--rot, 0deg) + 2deg))
+        scale(var(--s, 1)) scaleX(var(--sx, 1));
+      animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1);
+    }
+    100% {
+      opacity: 1;
+      transform: translate(0, 0) rotate(var(--rot, 0deg)) scale(var(--s, 1))
+        scaleX(var(--sx, 1));
+    }
+  }
+
+  /* 飞入依赖绝对坐标 + 板面 clip，窄屏只读网格里不启用（否则位移会顶出页面） */
+  @media (width >= 64rem) {
+    board-piece.board-enter {
+      animation: board-toss 0.85s linear both;
+      animation-delay: var(--enter-delay, 0ms);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    board-piece.board-enter {
+      animation: none;
+    }
+  }
+
+  /* 宽屏抓取手感：hover/active 轻微抬起放大（transform 不含位移，拖拽改 left/top 不受影响） */
+  @media (width >= 64rem) {
+    board-piece {
+      transition:
+        transform 0.15s var(--anatomy-ease, ease),
+        filter 0.15s var(--anatomy-ease, ease);
+      /* 长按归我们自己的浮层，iOS 不再弹“存储图像 / 打开链接”气泡 */
+      -webkit-touch-callout: none;
+    }
+
+    board-piece:hover {
+      transform: rotate(var(--rot, 0deg)) translateY(-2px)
+        scale(calc(var(--s, 1) * 1.03)) scaleX(var(--sx, 1));
+    }
+
+    board-piece[data-dragging] {
+      transform: rotate(var(--rot, 0deg)) scale(calc(var(--s, 1) * 1.05))
+        scaleX(var(--sx, 1));
+      filter: drop-shadow(0 6px 12px rgb(0 0 0 / 0.28));
+    }
+
+    /* 指针模式：物件不可拖，光标不再提示抓取 */
+    stamp-board[data-tool="pointer"] board-piece {
+      cursor: default;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      board-piece {
+        transition: none;
+      }
+
+      board-piece:hover,
+      board-piece[data-dragging] {
+        transform: rotate(var(--rot, 0deg)) scale(var(--s, 1))
+          scaleX(var(--sx, 1));
+      }
+    }
+  }
+
+  /* 窄屏回退：忽略绝对坐标，排成只读网格，拖拽无关样式关闭，浮层与提示隐藏 */
+  @media (width < 64rem) {
+    /* 得跟 `stamp-board[data-interactive] board-hint` 同特异度才能赢过它 */
+    stamp-board[data-interactive] board-hint {
+      display: none;
+    }
+    board-menu {
+      display: none;
+    }
+    board-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+      gap: var(--space-m);
+      min-height: 0;
+      place-items: center;
+    }
+
+    board-piece {
+      position: static;
+      left: auto;
+      top: auto;
+      transform: none;
+      cursor: default;
+      touch-action: auto;
+    }
+  }
+</style>
+
+<script>
+  if (!customElements.get("stamp-board")) {
+    customElements.define(
+      "stamp-board",
+      class StampBoard extends HTMLElement {
+        connectedCallback() {
+          const mq = matchMedia("(width >= 64rem)")
+          const grid = this.querySelector("board-grid") ?? this
+          const pieces = [...this.querySelectorAll<HTMLElement>("board-piece")]
+          // 图片/链接默认可被浏览器原生拖拽，会从 pointerdown 手里抢走后续
+          // pointermove（表现为「拖不动」）；在板上统一拦 dragstart 兜住所有子元素。
+          this.addEventListener("dragstart", (e) => e.preventDefault())
+          let topZ = pieces.reduce(
+            (m, p) =>
+              Math.max(m, parseFloat(p.style.getPropertyValue("--z")) || 0),
+            0,
+          )
+          let bottomZ = pieces.reduce(
+            (m, p) =>
+              Math.min(m, parseFloat(p.style.getPropertyValue("--z")) || 0),
+            0,
+          )
+          const menu = this.querySelector<HTMLElement>("board-menu")
+          const menuBtns = menu
+            ? [...menu.querySelectorAll<HTMLButtonElement>(".menu-btn")]
+            : []
+          let tool = "drag"
+          let selected: HTMLElement | null = null
+          // 客户端已激活：板下提示行这才亮出来（无 JS 时不承诺不存在的交互）
+          this.dataset.interactive = ""
+
+          let active: HTMLElement | null = null
+          let rect: DOMRect | null = null
+          let startX = 0
+          let startY = 0
+          let baseX = 0
+          let baseY = 0
+          let pw = 0
+          let ph = 0
+          let dragged = false
+          let justDragged = false
+          const THRESHOLD = 4
+
+          const num = (p: HTMLElement, name: string) =>
+            parseFloat(p.style.getPropertyValue(name)) || 0
+          const clamp = (v: number, lo: number, hi: number) =>
+            Math.min(Math.max(v, lo), hi)
+          const scaleOf = (p: HTMLElement) => {
+            const s = num(p, "--s")
+            return s > 0 ? s : 1
+          }
+
+          // 同一时刻只有一枚物件被“拿起”（选中 + 浮层展开）
+          const select = (p: HTMLElement) => {
+            if (selected && selected !== p) delete selected.dataset.selected
+            selected = p
+            p.dataset.selected = ""
+          }
+          const deselect = () => {
+            if (selected) delete selected.dataset.selected
+            selected = null
+          }
+
+          // 工具态只剩内部语义：drag = 可拖可点链接；pointer = 已拿起物件
+          const setTool = (next: "drag" | "pointer") => {
+            tool = next
+            this.dataset.tool = next
+            if (next === "drag") deselect()
+          }
+
+          // 操作：只写内存 CSS 变量（与拖拽同款惯例，刷新回默认）
+          const ops: Record<string, (p: HTMLElement) => void> = {
+            "zoom-in": (p) =>
+              p.style.setProperty(
+                "--s",
+                String(clamp(scaleOf(p) * 1.25, 0.5, 2.5)),
+              ),
+            "zoom-out": (p) =>
+              p.style.setProperty(
+                "--s",
+                String(clamp(scaleOf(p) / 1.25, 0.5, 2.5)),
+              ),
+            "rotate-ccw": (p) =>
+              p.style.setProperty("--rot", `${num(p, "--rot") - 15}deg`),
+            "rotate-cw": (p) =>
+              p.style.setProperty("--rot", `${num(p, "--rot") + 15}deg`),
+            mirror: (p) =>
+              p.style.setProperty("--sx", num(p, "--sx") === -1 ? "1" : "-1"),
+            front: (p) => {
+              topZ += 1
+              p.style.setProperty("--z", String(topZ))
+            },
+            back: (p) => {
+              bottomZ -= 1
+              p.style.setProperty("--z", String(bottomZ))
+            },
+          }
+          for (const b of menuBtns) {
+            b.addEventListener("click", () => {
+              if (!selected) return
+              ops[b.getAttribute("data-op") ?? ""]?.(selected)
+              // 缩放/旋转会改物件外廓，浮层跟着重新贴合
+              settleMenu()
+            })
+          }
+
+          // 浮层定位：圆心贴在选中件的外上角，右半圆放不下就换左半圆；
+          // 竖向把圆心夹在板内，免得贴边的物件把上半排按钮顶到板外去
+          const placeMenu = (p: HTMLElement) => {
+            if (!menu) return
+            const sb = this.getBoundingClientRect()
+            const gr = grid.getBoundingClientRect()
+            const pr = p.getBoundingClientRect()
+            const r =
+              parseFloat(getComputedStyle(this).getPropertyValue("--menu-r")) ||
+              74
+            const half = (menuBtns[0]?.offsetWidth || 30) / 2
+            const roomR = gr.right - pr.right
+            const roomL = pr.left - gr.left
+            const flip = pr.right + r + half > gr.right && roomL > roomR
+            const top = pr.top - sb.top
+            const lo = gr.top + r + half - sb.top
+            const hi = gr.bottom - r - half - sb.top
+            menu.style.left = `${Math.round((flip ? pr.left : pr.right) - sb.left)}px`
+            menu.style.top = `${Math.round(Math.min(Math.max(top, lo), hi))}px`
+            const n = Math.max(menuBtns.length - 1, 1)
+            menuBtns.forEach((b, i) => {
+              const a = -90 + (i * 180) / n
+              b.style.setProperty("--a", `${flip ? 180 - a : a}deg`)
+            })
+          }
+          const openMenu = (p: HTMLElement) => {
+            if (!menu || !menuBtns.length) return
+            placeMenu(p)
+            menuBtns.forEach((b, i) => {
+              b.classList.remove("menu-pop")
+              b.style.setProperty("--pop-delay", `${i * 22}ms`)
+              b.tabIndex = i === 0 ? 0 : -1 // toolbar 用 roving tabindex
+              void b.offsetWidth // 强制回流，重启动画
+              b.classList.add("menu-pop")
+            })
+            menu.hidden = false
+            // 焦点送进浮层：Esc 能退、方向键能走，键盘与触屏同样可操作
+            menuBtns[0]?.focus({ preventScroll: true })
+          }
+          const closeMenu = () => {
+            if (!menu || menu.hidden) return
+            // 焦点在浮层里时，收前先还给被拿起的物件（标准“焦点回宿主”）
+            const back = menu.contains(document.activeElement) ? selected : null
+            menu.hidden = true
+            for (const b of menuBtns) b.classList.remove("menu-pop")
+            back?.focus({ preventScroll: true })
+          }
+          // 操作后物件外廓还在 0.15s 过渡里变化（缩放/旋转都移动角点），
+          // 追几帧把浮层贴回新的角点；窗口过后自动停，不常驻 rAF
+          let menuRaf = 0
+          const settleMenu = () => {
+            if (!menu || menu.hidden || !selected) return
+            const until = performance.now() + 300
+            cancelAnimationFrame(menuRaf)
+            const step = () => {
+              if (!selected || menu.hidden) {
+                menuRaf = 0
+                return
+              }
+              placeMenu(selected)
+              menuRaf =
+                performance.now() < until ? requestAnimationFrame(step) : 0
+            }
+            menuRaf = requestAnimationFrame(step)
+          }
+          // 放下物件：收浮层、清选中、回到拖拽态
+          const exitPicked = () => {
+            closeMenu()
+            setTool("drag")
+          }
+          // 拿起一枚：切工具态、选中、在外上角展开浮层（三条入口共用）
+          const pick = (p: HTMLElement) => {
+            setTool("pointer")
+            select(p)
+            openMenu(p)
+          }
+
+          // 拿起后的一切退出：点板面空白收浮层回拖拽；物件内链接一律拦截
+          // （只选不跳转，要跳转先点空白放下）
+          grid.addEventListener("pointerdown", (e) => {
+            if (tool !== "pointer") return
+            if ((e.target as HTMLElement).closest?.("board-piece")) return
+            exitPicked()
+          })
+          this.addEventListener(
+            "click",
+            (e) => {
+              if (
+                tool === "pointer" &&
+                (e.target as HTMLElement).closest?.("board-piece")
+              ) {
+                e.preventDefault()
+              }
+            },
+            true,
+          )
+
+          // 唤起浮层的三条入口：鼠标右键、触屏长按（见 pressTimer）、键盘
+          // （Tab 到物件按 Enter / 空格 / 菜单键 / Shift+F10）。工具条已撤，
+          // 所以三条入口缺一不可；板面空白处的原生右键菜单不拦。
+          let pointerType = "mouse"
+          this.addEventListener(
+            "pointerdown",
+            (e) => {
+              pointerType = (e as PointerEvent).pointerType || "mouse"
+            },
+            true,
+          )
+          grid.addEventListener("contextmenu", (e) => {
+            if (!mq.matches) return
+            const piece = (e.target as HTMLElement).closest<HTMLElement>(
+              "board-piece",
+            )
+            if (pointerType !== "mouse") {
+              // 触屏 / 笔：长按由 pressTimer 接管，这里只拦掉原生菜单避免双开
+              if (piece) e.preventDefault()
+              return
+            }
+            if (!piece) {
+              if (menu && !menu.hidden) exitPicked()
+              return
+            }
+            e.preventDefault()
+            pick(piece)
+          })
+          this.addEventListener("keydown", (e) => {
+            if (!mq.matches) return
+            if (e.key === "Escape") {
+              if (menu && !menu.hidden) exitPicked()
+              return
+            }
+            const t = e.target as HTMLElement | null
+            if (!t?.matches?.("board-piece")) return
+            if (
+              e.key !== "Enter" &&
+              e.key !== " " &&
+              e.key !== "ContextMenu" &&
+              !(e.shiftKey && e.key === "F10")
+            )
+              return
+            e.preventDefault() // 空格不滚页、Enter 不触发内层链接
+            pick(t)
+          })
+          // 浮层内方向键走位（role="toolbar" + roving tabindex）
+          menu?.addEventListener("keydown", (e) => {
+            const back = e.key === "ArrowLeft" || e.key === "ArrowUp"
+            if (
+              e.key !== "ArrowLeft" &&
+              e.key !== "ArrowUp" &&
+              e.key !== "ArrowRight" &&
+              e.key !== "ArrowDown"
+            )
+              return
+            const i = menuBtns.indexOf(e.target as HTMLButtonElement)
+            if (i < 0) return
+            e.preventDefault()
+            const next =
+              menuBtns[
+                (i + (back ? -1 : 1) + menuBtns.length) % menuBtns.length
+              ]
+            for (const b of menuBtns) b.tabIndex = -1
+            next.tabIndex = 0
+            next.focus()
+          })
+
+          // 触屏 / 笔长按 500ms = 右键的等价操作（浮层取代原生菜单）；
+          // 手指一旦越过拖拽阈值就拆Timer，所以“拖”与“长按”不相互抢抢
+          let pressTimer: ReturnType<typeof setTimeout> | undefined
+          let longPressed = false
+          const clearPress = () => {
+            if (pressTimer !== undefined) clearTimeout(pressTimer)
+            pressTimer = undefined
+          }
+
+          const onMove = (e: PointerEvent) => {
+            if (!active || !rect || longPressed) return
+            const dx = e.clientX - startX
+            const dy = e.clientY - startY
+            if (!dragged && Math.hypot(dx, dy) > THRESHOLD) {
+              dragged = true
+              clearPress()
+            }
+            if (!dragged) return
+            e.preventDefault()
+            active.dataset.dragging = ""
+            const maxX = Math.max(0, 1 - pw / rect.width)
+            const maxY = Math.max(0, 1 - ph / rect.height)
+            const nx = Math.min(Math.max(baseX + dx / rect.width, 0), maxX)
+            const ny = Math.min(Math.max(baseY + dy / rect.height, 0), maxY)
+            active.style.setProperty("--x", String(nx))
+            active.style.setProperty("--y", String(ny))
+          }
+
+          const onUp = (e: PointerEvent) => {
+            const piece = active
+            if (!piece) return
+            clearPress()
+            try {
+              piece.releasePointerCapture?.(e.pointerId)
+            } catch {}
+            piece.removeEventListener("pointermove", onMove)
+            piece.removeEventListener("pointerup", onUp)
+            piece.removeEventListener("pointercancel", onUp)
+            delete piece.dataset.dragging
+            if (dragged || longPressed) {
+              justDragged = true
+              // 拖拽 / 长按后抑制紧随其后的 click（防误点链接）
+              piece.addEventListener(
+                "click",
+                (ev) => (justDragged ? ev.preventDefault() : undefined),
+                { capture: true, once: true },
+              )
+            }
+            longPressed = false
+            active = null
+            rect = null
+          }
+
+          const onDown = (e: PointerEvent) => {
+            const piece = e.currentTarget as HTMLElement
+            if (e.button !== 0 && e.pointerType === "mouse") return
+            if (tool === "pointer") {
+              select(piece)
+              // 浮层开着时改选另一枚：浮层跟着换锚点
+              if (menu && !menu.hidden) openMenu(piece)
+              return
+            }
+            active = piece
+            rect = grid.getBoundingClientRect()
+            startX = e.clientX
+            startY = e.clientY
+            baseX = num(piece, "--x")
+            baseY = num(piece, "--y")
+            pw = piece.offsetWidth
+            ph = piece.offsetHeight
+            dragged = false
+            justDragged = false
+            longPressed = false
+            topZ += 1
+            piece.style.setProperty("--z", String(topZ))
+            // 指针可能已失效（快速抬起、自动化合成事件），capture 抛错不该
+            // 把整次拖拽与长按一起带崩
+            try {
+              piece.setPointerCapture(e.pointerId)
+            } catch {}
+            piece.addEventListener("pointermove", onMove)
+            piece.addEventListener("pointerup", onUp)
+            piece.addEventListener("pointercancel", onUp)
+            if (e.pointerType !== "mouse") {
+              clearPress()
+              pressTimer = setTimeout(() => {
+                pressTimer = undefined
+                longPressed = true
+                pick(piece) // 拖拽已因 longPressed 而在 onMove 里失效
+              }, 500)
+            }
+          }
+
+          // 宽屏才给物件可聚焦（窄屏只读网格不该往 tab 序里塞 7 个停靠点）
+          const enable = (on: boolean) =>
+            pieces.forEach((p) => {
+              p.tabIndex = on ? 0 : -1
+              on
+                ? p.addEventListener("pointerdown", onDown)
+                : p.removeEventListener("pointerdown", onDown)
+            })
+
+          mq.addEventListener("change", () => {
+            closeMenu()
+            enable(mq.matches)
+          })
+          // 窗口尺寸一变，板面与物件几何全部重排，浮层锚点作废
+          window.addEventListener("resize", closeMenu)
+          enable(mq.matches)
+
+          // 标签：切换板的 data-view，CSS 按 kind 过滤显示；再给可见件重放入场动画。
+          const tabs = [...this.querySelectorAll(".board-tab")]
+          const reduce = matchMedia("(prefers-reduced-motion: reduce)")
+          const playEntrance = () => {
+            if (reduce.matches) return // 尊重减弱动画偏好：直接显隐，不飞入
+            const view = this.dataset.view ?? "all"
+            let i = 0
+            for (const p of pieces) {
+              const kind = p.getAttribute("data-kind")
+              if (view !== "all" && kind !== view) continue
+              p.style.setProperty("--enter-delay", `${i++ * 70}ms`)
+              p.classList.remove("board-enter")
+              void p.offsetWidth // 强制回流，重启动画
+              p.classList.add("board-enter")
+            }
+          }
+          // 动画结束/取消（如中途被 display:none 掉）后摘掉类，保持 DOM 干净、下次可重新触发
+          const clearEnter = (e: AnimationEvent) => {
+            const t = e.target as HTMLElement
+            if (t.classList?.contains("board-enter")) {
+              t.classList.remove("board-enter")
+              t.style.removeProperty("--enter-delay")
+            }
+          }
+          this.addEventListener("animationend", clearEnter)
+          this.addEventListener("animationcancel", clearEnter)
+          for (const btn of tabs) {
+            btn.addEventListener("click", () => {
+              this.dataset.view = btn.getAttribute("data-view") ?? "all"
+              for (const b of tabs)
+                b.setAttribute("aria-pressed", String(b === btn))
+              // 过滤切换后选中件可能被隐藏：收浮层、清选中、回拖拽态
+              exitPicked()
+              playEntrance()
+            })
+          }
+        }
+      },
+    )
+  }
+</script>

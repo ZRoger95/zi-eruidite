@@ -37,3 +37,5 @@
   （封装 `@lucasmarkes/hairline`，常用于列表页页头）。
 - [AnatomyFigure 等距机器组件](anatomy-figure.md) —— 把抽象概念画成一台可交互小机器
   （构建期出全图 SVG + 客户端只做动画）。
+- [Board 收藏板组件](board.md) —— 可拖拽的邮票与徽章拼贴板（SSR 铺默认位 + Pointer
+  Events 客户端激活，窄屏回退只读网格）。

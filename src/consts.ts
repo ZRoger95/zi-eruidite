@@ -56,6 +56,7 @@ export const NAVIGATION: { key: UIKey; href: string; bilingual?: boolean }[] = [
   { key: "navTags", href: "/tags" },
   { key: "navProjects", href: "/projects" },
   // { key: "navFigures", href: "/figures" },
+  { key: "navBoard", href: "/board", bilingual: true },
   { key: "navAuthors", href: "/authors" },
 ]
 
