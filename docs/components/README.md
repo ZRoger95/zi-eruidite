@@ -41,3 +41,5 @@
   Events 客户端激活，窄屏回退只读网格）。
 - [GlassBubble 玻璃泡组件](glass-bubble.md) —— 一颗可拖过照片的玻璃泡，边缘折射 +
   色散 + 高光（从 Bencho 的 React WebGL 着色器组件移植为原生自主定制元素）。
+- [ScrambleText 解码文字组件](scramble-text.md) —— 一行乱码从左到右逐字锁回真文本
+  （从一段 React hook 改写为原生自主定制元素，SSR 出的就是最终文本）。

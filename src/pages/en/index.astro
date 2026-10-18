@@ -3,6 +3,7 @@ import BlogCard from "@/components/BlogCard.astro"
 import HairlineFigure from "@/components/HairlineFigure.astro"
 import MomentCard from "@/components/MomentCard.astro"
 import MetaPage from "@/components/MetaPage.astro"
+import ScrambleText from "@/components/ScrambleText.astro"
 import Layout from "@/layouts/Layout.astro"
 import { SITE } from "@/consts"
 import { getMoments, getPostViews } from "@/lib/content"
@@ -28,7 +29,10 @@ const moments = SITE.momentsOnHome
           <img src={SITE.avatar} alt={`${SITE.title} avatar`} width="64" height="64" />
         </hero-avatar>
       )}
-      <h1>{t(locale, "heroGreeting")} {SITE.title}</h1>
+      <h1>
+        {t(locale, "heroGreeting")}
+        <ScrambleText text={SITE.title} face="inherit" />
+      </h1>
       {SITE.hero[locale].paragraphs.map((paragraph) => <p>{paragraph}</p>)}
     </hero-text>
     <hero-figure>

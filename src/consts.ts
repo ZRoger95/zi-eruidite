@@ -19,7 +19,7 @@ export interface BackgroundConfig {
 }
 
 export const SITE = {
-  title: "astro-erudite",
+  title: "zi-erudite",
   description: "An opinionated, unstyled blogging template built with Astro.",
   dir: "ltr",
   defaultPageImage: "/static/opengraph-image.png",
