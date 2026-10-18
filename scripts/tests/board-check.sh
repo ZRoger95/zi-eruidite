@@ -66,6 +66,10 @@ assert_has dist/board/index.html "--badge-h:40px" "横版字标按 size 压小�
 assert_has dist/en/board/index.html 'aria-label="Human Coded"' "英文页字标徽章取 en 标题"
 assert_lacks dist/board/index.html 'astro.en' "中文板不泄漏 .en id"
 
+# ---------- dev 编辑器：几何双向一致的渲染前置 ----------
+assert_match dist/board/index.html 'board-piece[^>]*data-id="astro"' "piece 带 data-id（保存配对键）"
+assert_match dist/board/index.html 'board-piece[^>]*--sx:' "piece SSR 即写 --sx（镜像可往返）"
+
 # ---------- 拖拽客户端激活脚本入产物 ----------
 # Astro 7 把组件 <script> 提成独立 chunk（不再内联回 HTML），断言得指向产物 JS
 board_js="$(find dist/_astro -name 'Board.astro_astro_type_script_index_*.js' 2>/dev/null | head -1)"
@@ -101,6 +105,17 @@ assert_has dist/board/index.html 'data-op="rotate-ccw"' "逆时针旋转按钮�
 assert_has dist/board/index.html 'data-op="mirror"' "镜像按钮存在"
 assert_has dist/board/index.html 'data-op="front"' "置顶按钮存在"
 assert_has dist/board/index.html 'data-op="back"' "置底按钮存在"
+assert_has dist/board/index.html 'data-op="info"' "信息按钮存在"
+
+# ---------- info 信息小卡片：骨架 SSR、默认隐藏，数据住在 DOM 里 ----------
+assert_has dist/board/index.html "<board-card" "信息卡片容器渲染"
+assert_match dist/board/index.html 'board-card[^>]*hidden' "信息卡片 SSR 默认隐藏（无 JS 不出现）"
+assert_has dist/board/index.html 'data-source-label="来源"' "中文来源标签入骨架"
+assert_has dist/en/board/index.html 'data-source-label="Source"' "英文来源标签入骨架"
+assert_has dist/en/board/index.html 'aria-label="Info"' "英文信息按钮界面词"
+assert_has dist/board/index.html 'data-href="https://' "邮票纸面带来源 data-href（卡片可查）"
+assert_has "${board_js}" "card-title" "卡片建档逻辑入产物 JS"
+assert_has "${board_js}" "card-close" "卡片关闭钮入产物 JS"
 
 # ---------- 物件外上角的径向操作浮层 + 板下提示行 ----------
 assert_has dist/board/index.html "<board-menu" "浮层容器渲染"

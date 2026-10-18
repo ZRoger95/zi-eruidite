@@ -7,12 +7,18 @@ import humancodedLogo from "@/assets/board/humancoded.svg"
 import javaLogo from "@/assets/board/java.svg"
 import vueLogo from "@/assets/board/vue.svg"
 import stargirl from "@/assets/board/stargirl.jpg"
+import donglongdong1 from "@/assets/board/DONGLONGDONG-1.jpg"
+import donglongdong2 from "@/assets/board/DONGLONGDONG-2.jpg"
+import donglongdong3 from "@/assets/board/DONGLONGDONG-3.jpg"
+import unknownCyc1 from "@/assets/board/unknownCYC-1.jpg"
+import unknownCyc2 from "@/assets/board/unknownCYC-2.jpg"
+import unknownCyc3 from "@/assets/board/unknownCYC-3.jpg"
 import preview1 from "@/assets/board/preview-1.png"
 import preview2 from "@/assets/board/preview-2.png"
 
 /**
  * 收藏板物件的双语文案：`zh` 为锚点，`en` 缺省时回落 `zh`。
- * 几何（x/y/rotate/z/w/h）与 `image`、`href` 与语言无关，恒取一条。
+ * 几何（x/y/rotate/z/w/h/scale/flip）与 `image`、`href` 与语言无关，恒取一条。
  */
 export type L10n = { zh: string; en?: string }
 
@@ -36,6 +42,10 @@ export type BoardItem = {
   /** 徽章图标高度（px）：缺省走 CSS 流体尺寸 `clamp(3.5rem, 6vw, 5rem)`；
    * 横版字标（如 humancoded 253×56）需显式压小，否则宽度会顶满板面 */
   size?: number
+  /** 显示缩放倍率（映射 piece 的 `--s`），缺省 1；仅非 1 才落字段 */
+  scale?: number
+  /** 水平镜像（映射 piece 的 `--sx`），缺省 false */
+  flip?: boolean
   href?: string
   title: L10n
   alt: L10n
@@ -68,6 +78,8 @@ export const BOARD_ITEMS: BoardItem[] = [
     y: 0.4,
     rotate: 3,
     z: 2,
+    // 占位来源，后续替换为真实出处
+    href: "https://en.wikipedia.org/wiki/Moon_landing",
     denomination: { zh: "¥1.20" },
     postmark: { zh: "BEIJING" },
     title: { zh: "登月邮票" },
@@ -83,6 +95,8 @@ export const BOARD_ITEMS: BoardItem[] = [
     z: 3,
     w: 240,
     h: 150,
+    // 占位来源，后续替换为真实出处
+    href: "https://commons.wikimedia.org/wiki/Category:Coastlines",
     denomination: { zh: "¥2.00" },
     postmark: { zh: "SHANGHAI" },
     title: { zh: "海岸线邮票" },
@@ -160,7 +174,99 @@ export const BOARD_ITEMS: BoardItem[] = [
     z: 7,
     w: 160,
     h: 226,
+    // 占位来源，后续替换为真实出处
+    href: "https://www.pixiv.net/",
     title: { zh: "星野之梦" },
     alt: { zh: "一幅黑白插画，少女躺在星空下的草地上" },
+  },
+  {
+    id: "long-tailed-tit-stamp",
+    kind: "stamp",
+    image: unknownCyc1,
+    x: 0.6,
+    y: 0.06,
+    rotate: 4,
+    z: 10,
+    w: 200,
+    h: 200,
+    href: "https://weibo.com/7385955461/RmQhZDrLZ",
+    title: { zh: "银喉长尾山雀" },
+    alt: { zh: "一幅方版鸟类邮票插画，银喉长尾山雀栖在枝头" },
+  },
+  {
+    id: "waxwing-stamp",
+    kind: "stamp",
+    image: unknownCyc2,
+    x: 0.02,
+    y: 0.36,
+    rotate: -5,
+    z: 11,
+    w: 200,
+    h: 200,
+    href: "https://weibo.com/7385955461/RmQhZDrLZ",
+    title: { zh: "太平鸟" },
+    alt: { zh: "一幅方版鸟类邮票插画，太平鸟俯身啄食浆果" },
+  },
+  {
+    id: "goldcrest-stamp",
+    kind: "stamp",
+    image: unknownCyc3,
+    x: 0.62,
+    y: 0.66,
+    rotate: 6,
+    z: 12,
+    w: 200,
+    h: 200,
+    href: "https://weibo.com/7385955461/RmQhZDrLZ",
+    title: { zh: "戴菊" },
+    alt: { zh: "一幅方版鸟类邮票插画，戴菊仰头停在松枝上" },
+  },
+  {
+    id: "seashore-stamp",
+    kind: "stamp",
+    image: donglongdong1,
+    x: 0.44,
+    y: 0.42,
+    rotate: -4,
+    z: 13,
+    w: 170,
+    h: 260,
+    href: "https://weibo.com/5905627419/RmXKnFc3M",
+    title: { zh: "夏日海岸" },
+    alt: {
+      zh: "一幅竖版邮票插画（@DONGLONGDONG COLOR #111），少年在碧蓝海浪边的沙滩上奔跑",
+    },
+  },
+  {
+    id: "cloudsea-stamp",
+    kind: "stamp",
+    image: donglongdong2,
+    x: 0.04,
+    y: 0.78,
+    rotate: 2,
+    z: 14,
+    w: 250,
+    h: 134,
+    href: "https://weibo.com/5905627419/RmcEWym8a",
+    title: { zh: "云海写生" },
+    alt: {
+      zh: "一幅横版邮票插画（@DONGLONGDONG COLOR #106），少年坐在岩石上对着巨大积雨云作画",
+    },
+  },
+  {
+    id: "galaxy-stamp",
+    kind: "stamp",
+    image: donglongdong3,
+    x: 0.66,
+    y: 0.02,
+    rotate: -3,
+    z: 15,
+    w: 240,
+    h: 142,
+    href: "https://weibo.com/5905627419/RjCdJsRZ1",
+    title: { zh: "星夜独行" },
+    alt: {
+      zh: "一幅横版邮票插画（@DONGLONGDONG COLOR #97），少年提着灯仰望银河星空",
+    },
   },
 ]

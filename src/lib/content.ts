@@ -153,6 +153,10 @@ export type BoardView = {
   h: number
   /** 徽章图标高度（px），缺省走 CSS 流体尺寸 */
   size?: number
+  /** 显示缩放倍率（`--s`），恒有值，缺省 1 */
+  scale: number
+  /** 水平镜像（`--sx`），恒有值，缺省 false */
+  flip: boolean
   href?: string
   /** 以下文案 locale 命中译文则取译文，否则回落 zh */
   title: string
@@ -186,6 +190,8 @@ export async function getBoardViews(locale: Locale): Promise<BoardView[]> {
       w: item.w ?? 160,
       h: item.h ?? 208,
       size: item.size,
+      scale: item.scale ?? 1,
+      flip: item.flip ?? false,
       href: item.href,
       title: pick(item.title, locale) ?? "",
       alt: pick(item.alt, locale) ?? "",
