@@ -3,6 +3,7 @@ import { Image } from "astro:assets"
 import type { ImageMetadata } from "astro"
 import { getBoardViews } from "@/lib/content"
 import { t, type Locale } from "@/lib/i18n"
+import BoardEditorBar from "./BoardEditorBar.astro"
 import type { HTMLAttributes } from "astro/types"
 
 type Props = {
@@ -355,6 +356,10 @@ function stampMaskUrl(w: number, h: number): string {
   <!-- 板下提示行：只在客户端激活后出现（stamp-board[data-interactive]），
        不然无 JS 时它在承诺一个不存在的交互 -->
   <board-hint>{t(locale, "boardHint")}</board-hint>
+  <!-- dev 布局保存浮条：组件自带 import.meta.env.PROD 早退，生产 HTML 无 markup、
+       端点也不存在（apply:serve）；少量 scoped 死样式残留与 MomentComposer 同款。
+       点击把当前板面几何经 POST /api/board/layout 逐字段写回 src/data/board.ts。 -->
+  <BoardEditorBar locale={locale} />
 </stamp-board>
 
 <style>

@@ -70,6 +70,9 @@ assert_lacks dist/board/index.html 'astro.en' "中文板不泄漏 .en id"
 assert_match dist/board/index.html 'board-piece[^>]*data-id="astro"' "piece 带 data-id（保存配对键）"
 assert_match dist/board/index.html 'board-piece[^>]*--sx:' "piece SSR 即写 --sx（镜像可往返）"
 
+# ---------- dev 编辑器生产零痕迹 ----------
+assert_lacks dist/board/index.html "<board-editor" "生产产物无编辑条"
+
 # ---------- 拖拽客户端激活脚本入产物 ----------
 # Astro 7 把组件 <script> 提成独立 chunk（不再内联回 HTML），断言得指向产物 JS
 board_js="$(find dist/_astro -name 'Board.astro_astro_type_script_index_*.js' 2>/dev/null | head -1)"

@@ -191,10 +191,21 @@ Composer，生产构建零痕迹）：点击实时检测译文状态——无译
 内容根默认 `src/content/blog/`，可用 `TRANSLATE_DEV_CONTENT_ROOT` 覆盖
 （测试隔离用）。回归：`bash scripts/tests/translate-ui-check.sh`。
 
+### dev 收藏板布局编辑器
+
+`astro dev` 下 `/board` 板下有「保存布局」浮条（模式同 Moment Composer，生产
+ HTML 无 markup、无端点）：宽屏里拖拽/缩放/旋转/镜像/叠放后点击，浮条采集各
+ `board-piece[data-id]` 的几何 `POST /api/board/layout`，由 `patchBoardSource` 按 `id`
+ 逐字段改写 `src/data/board.ts`（保留注释与非几何字段，默认值不落字段，同值不重写）。
+写入目标默认 `src/data/board.ts`，可用 `BOARD_LAYOUT_SOURCE` 覆盖（测试隔离用）。
+详见 [docs/components/board.md](docs/components/board.md) §9。回归：
+`bash scripts/tests/board-source-patch-check.sh`（离线）与 `bash scripts/tests/board-layout-check.sh`（起停 dev server）。
+
 ## 测试与验证指南
 
 测试脚本位于 `scripts/tests/`（部署干跑 `deploy-check.sh`、i18n 回归
-`i18n-check.sh`、翻译脚本离线桩 `translate-check.sh`）。提交前至少运行
+`i18n-check.sh`、翻译脚本离线桩 `translate-check.sh`、收藏板渲染 `board-check.sh`、
+收藏板布局写回 `board-source-patch-check.sh`/`board-layout-check.sh`）。提交前至少运行
 `bun run format:check` 和 `bun run build`。
 若只使用 npm 工作流，对应命令为 `npm run format:check` 和 `npm run build`。
 涉及可视样式、排版或路由变化时，请在本地开发服务器中手动检查相关页面。
