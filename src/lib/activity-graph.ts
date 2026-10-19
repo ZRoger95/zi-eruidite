@@ -140,15 +140,18 @@ export function formatTip(date: Date, count: number): string {
   return `${tipFormatter.format(date)} · ${count} 条动态`
 }
 
-/** 图注文本：今年/2025 · 共 N 条动态；空年份 · 暂无动态。 */
+/**
+ * 图注 HTML：数字加粗 + 年份语境，如「**5** 条动态 · 今年」；空年份「今年 · 暂无动态」。
+ * 返回受控 HTML（total 为数字、label 为固定词或年份），供 set:html / innerHTML 使用。
+ */
 export function formatCaption(
   year: number,
   stats: ActivityStats,
   currentYear: number,
 ): string {
-  const label = year === currentYear ? "今年" : String(year)
-  if (stats.total === 0) return `${label} · 暂无动态`
-  return `${label} · 共 ${stats.total} 条动态`
+  const label = year === currentYear ? "今年" : `${year} 年`
+  if (stats.total === 0) return `<span>${label} · 暂无动态</span>`
+  return `<strong class="activity-total">${stats.total}</strong> 条动态 · ${label}`
 }
 
 /**

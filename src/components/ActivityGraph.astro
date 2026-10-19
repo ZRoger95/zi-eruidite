@@ -32,29 +32,24 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
   data-activity-graph
   data-years={JSON.stringify({ maps: yearMaps, currentYear })}
 >
-  <figcaption class="activity-caption">
-    <span data-caption
-      >{formatCaption(currentYear, defaultData.stats, currentYear)}</span
-    >
-    <div class="activity-caption-side">
-      <HairlineFigure
-        figure="phosphor"
-        label="七乘七余辉点阵，指针划过时亮点渐隐"
-        width="96px"
-        intensity={0.7}
-      />
-      <label class="activity-year-label">
-        <span class="activity-sr-only">选择年份</span>
-        <select data-year-select>
-          {options.map((y) => (
-            <option value={y} selected={y === currentYear}>
-              {y === currentYear ? "今年" : y}
-            </option>
-          ))}
-        </select>
-      </label>
-    </div>
-  </figcaption>
+  <div class="activity-toolbar">
+    <HairlineFigure
+      figure="phosphor"
+      label="七乘七余辉点阵，指针划过时亮点渐隐"
+      width="96px"
+      intensity={0.7}
+    />
+    <label class="activity-year-label">
+      <span class="activity-sr-only">选择年份</span>
+      <select data-year-select>
+        {options.map((y) => (
+          <option value={y} selected={y === currentYear}>
+            {y === currentYear ? "今年" : y}
+          </option>
+        ))}
+      </select>
+    </label>
+  </div>
   <div class="activity-scroll">
     <div
       class="activity-grid"
@@ -64,14 +59,21 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
       set:html={renderGrid(defaultData, todayStr)}
     ></div>
   </div>
-  <div class="activity-tooltip" data-tooltip aria-hidden="true"></div>
-  <div class="activity-legend" aria-hidden="true">
-    <span class="activity-legend-label">少</span>
-    {[0, 1, 2, 3, 4].map((level) => (
-      <span class="activity-legend-swatch" data-level={level}></span>
-    ))}
-    <span class="activity-legend-label">多</span>
+  <div class="activity-foot">
+    <span
+      class="activity-caption"
+      data-caption
+      set:html={formatCaption(currentYear, defaultData.stats, currentYear)}
+    ></span>
+    <div class="activity-legend" aria-hidden="true">
+      <span class="activity-legend-label">少</span>
+      {[0, 1, 2, 3, 4].map((level) => (
+        <span class="activity-legend-swatch" data-level={level}></span>
+      ))}
+      <span class="activity-legend-label">多</span>
+    </div>
   </div>
+  <div class="activity-tooltip" data-tooltip aria-hidden="true"></div>
   <div
     class="activity-sr-only"
     data-sr-list
@@ -155,7 +157,7 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
         year === payload.currentYear ? new Date().toDateString() : undefined,
       )
       grid.style.setProperty("--weeks", String(data.weeks))
-      caption.textContent = formatCaption(year, data.stats, payload.currentYear)
+      caption.innerHTML = formatCaption(year, data.stats, payload.currentYear)
       srList.innerHTML = renderSrList(data)
     })
   })()
@@ -163,11 +165,13 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
 
 <style is:global>
   .activity-graph {
-    --activity-1: color-mix(in oklab, var(--accent) 30%, var(--background));
-    --activity-2: color-mix(in oklab, var(--accent) 55%, var(--background));
-    --activity-3: color-mix(in oklab, var(--accent) 80%, var(--background));
-    --cell: 9px;
-    --gap: 2px;
+    --activity-1: color-mix(in oklab, var(--accent) 20%, var(--background));
+    --activity-2: color-mix(in oklab, var(--accent) 42%, var(--background));
+    --activity-3: color-mix(in oklab, var(--accent) 68%, var(--background));
+    /* 发丝边框：把空格勾成干净晶格（参考 originui 的 border-border/30） */
+    --cell-ring: color-mix(in oklab, var(--border) 55%, transparent);
+    --cell: 10px;
+    --gap: 3px;
     position: relative;
     margin-bottom: var(--space-l);
     padding: var(--space-xs);
@@ -175,21 +179,31 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     border-radius: var(--radius-sm);
   }
 
-  .activity-caption {
+  .activity-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-xs);
+  }
+
+  .activity-foot {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-s);
-    margin-bottom: var(--space-xs);
+    margin-top: var(--space-2xs);
+  }
+
+  .activity-caption {
     font-family: var(--font-mono);
     font-size: calc(var(--step--1) - 1px);
     color: var(--muted-foreground);
   }
 
-  .activity-caption-side {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
+  .activity-total {
+    color: var(--foreground);
+    font-weight: 600;
   }
 
   .activity-year-label select {
@@ -247,6 +261,7 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     aspect-ratio: 1 / 1;
     border-radius: 2px;
     background: var(--gray-4);
+    border: 0.5px solid var(--cell-ring);
   }
 
   .activity-cell[data-level="1"] {
@@ -291,9 +306,7 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
   .activity-legend {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: var(--space-2xs);
-    margin-top: var(--space-2xs);
     font-family: var(--font-mono);
     font-size: calc(var(--step--1) - 1px);
     color: var(--muted-foreground);
@@ -304,6 +317,7 @@ const options = [currentYear, ...years.filter((y) => y !== currentYear)]
     height: var(--cell);
     border-radius: 2px;
     background: var(--gray-4);
+    border: 0.5px solid var(--cell-ring);
   }
 
   .activity-legend-swatch[data-level="1"] {
