@@ -80,15 +80,15 @@
 | `src/components/LenticularCard.astro` | 新增 | SSR 两张 `<Image>`（走 Astro 图片优化）+ 宿主标记 + 注册 `lenticular-card`，带 `customElements.get` 守卫（View Transitions 会重跑 body 脚本） |
 | `src/lib/lenticular.ts` | 新增 | `mountLenticular(host) → LenticularHandle{ destroy(), attrChanged? }`：Pointer/Keyboard 输入、rAF 弹簧、写 CSS 变量与 ARIA。旋钮读宿主 `data-*` |
 | `src/styles/lenticular.css` | 新增 | 全局引入于 `src/layouts/Layout.astro`，与 `eye-tracker.css`、`glass-bubble.css`、`scramble-text.css` 同列 |
-| `src/components/Board.astro` | 修改 | 仅插入一处 `<LenticularCard>` + 两张图的 import |
+| `src/components/Board.astro` | 修改 | 仅插入一处 `<LenticularCard>`（图/题/alt 均取自现成 view，不新增 import） |
 | `src/lib/i18n.ts` | 修改 | `UI_STRINGS` 补 zh + en 两份词条（见 §9） |
 | `docs/components/lenticular-card.md` | 新增 | AGENTS.md 明文要求：此类组件同步补一篇用法文档，沿用 README 的 8 节顺序 |
 | `scripts/tests/lenticular-check.sh` | 新增 | 构建期产物断言（离线） |
-| `scripts/tests/lenticular-motion-check.sh` | 新增 | dev server + playwright-core 动效断言 |
+| `scripts/tests/lenticular-motion-check.sh` | 新增 | 弹簧与进度纯函数的离线断言（`node --experimental-strip-types`，不起浏览器） |
 
-组件 Props：`locale`（必填）、`srcA`/`srcB`（`ImageMetadata`）、可选 `maxTilt`、`stiffness`、`damping`、`blend`——落成宿主 `data-*`，缺省即 §6/§7 的锁定值。双语面名走 `UI_STRINGS`（固定两面，属界面文字，非内容条目），故 Props 不含 `title`/`alt` 的 `L10n`。
+组件 Props：`locale`（必填）、`srcA`/`srcB`（`ImageMetadata`）、`titleA`/`titleB`、`altA`/`altB`（均为已按当前 locale 取好的字符串，由 `Board.astro` 从 `getBoardViews()` 的现成 view 里取，见 §9）、可选 `maxTilt`、`stiffness`、`damping`、`blend`——后四个落成宿主 `data-*`，缺省即 §6/§7 的锁定值。
 
-两张源图由 `Board.astro` 自行 `import`，与 `src/data/board.ts` 里对同一批文件的 import **各写各的**：同一路径说明符经 Vite 归并为同一模块实例，不会重复下载；不要为了「去重」把 `board.ts` 的 import 抽成共享模块——那会把 §4 的数据模型不动产权给破坏掉。
+两张源图**不另起 import**：`Board.astro` 直接从 `getBoardViews(locale)` 里取 `cloudsea-stamp` / `galaxy-stamp` 两条现成 view，连图（`view.image`，与现有邮票同一套 `as ImageMetadata` 写法）、面名（`view.title`）、描述（`view.alt`）一并传给组件。板上那两枚邮票与本卡用同一份数据、同一次图片优化，不存在重复资源，也不需要为「去重」去改 `src/data/board.ts`。
 
 ## 5. 渲染契约：JS 每帧只写 4 个数
 
@@ -183,13 +183,15 @@ mask-image: linear-gradient(var(--ma), black calc(var(--c) - var(--feather)),
 
 ## 9. i18n
 
-两张源图中英共用，不复制。面名与提示属界面文字，进 `src/lib/i18n.ts` 的 `UI_STRINGS`，zh/en 各一份：
+两张源图中英共用，不复制。
+
+**面名与 alt 不在这里定义**——它们已经在 `src/data/board.ts` 的 `BOARD_ITEMS` 里（`cloudsea-stamp` 与 `galaxy-stamp` 的 `title`/`alt`，已带 `pick()` 的 zh 回落、已跟主题）。`Board.astro` 从 `getBoardViews(locale)` 的现成 view 里取那两条，以字符串传给 `LenticularCard`。在 `UI_STRINGS` 再存一份「云海写生」会造出重复文案：改一枚邮票名得改两处，且新增的英文补译不会自动流到卡上。**只读不改**，所以 §4 的数据模型不变量仍然成立（将来若把那两枚邮票标 `draft: true`，卡会取不到 view——那是一条真实的风险，故 §10 补一条应对：取不到即构建报错，不允许静默降级为空字串）。
+
+只有卡题与两条提示是界面文字，进 `src/lib/i18n.ts` 的 `UI_STRINGS`，zh/en 各一份：
 
 | key | zh | en |
 | --- | --- | --- |
 | `boardLensTitle` | 光栅卡 | Lenticular Card |
-| `boardLensFaceSea` | 云海写生 | Painting the Cloud Sea |
-| `boardLensFaceNight` | 星夜独行 | Walking Under the Galaxy |
 | `boardLensHintPointer` | 倾斜看另一面 | Tilt to see the other side |
 | `boardLensHintTouch` | 拖动看另一面 | Drag to see the other side |
 
@@ -202,6 +204,7 @@ mask-image: linear-gradient(var(--ma), black calc(var(--c) - var(--feather)),
 3. **`mix-blend-mode` 污染板面底色**。对策：`lens-stage` 上 `isolation: isolate`（与板面负 z 沉底同一课）。
 4. **View Transitions 重跑 body 脚本**。对策：`customElements.get` 守卫 + `disconnectedCallback` 里 `destroy()`（撤 rAF、撤监听），绝不让循环活过它的页面。
 5. **`@property` 老浏览器不支持**。对策：默认值不靠 `initial-value`，靠宿主上的普通声明（§5）。
+6. **卡依赖那两枚邮票的 view**（§9：面名与 alt 从 `BOARD_ITEMS` 只读）。若它们被改名、标 `draft` 或删除，`Board.astro` 会取不到。对策：用 `find` 取 view 后**取不到即 `throw`**（构建期报错），不允许 `?? ""` 静默降级为空标题。
 
 ## 11. 测试与验证
 
@@ -212,12 +215,18 @@ mask-image: linear-gradient(var(--ma), black calc(var(--c) - var(--feather)),
   - 含 `customElements.define("lenticular-card"`；
   - CSS 里出现 `@property --t`（或等价注册名）与 `--feather`；
   - en 页出现英文词条、zh 页出现中文词条。
-- **`scripts/tests/lenticular-motion-check.sh`（起停 dev server，仿 `board-layout-check.sh`）**：这是原始需求「两个动画同步」唯一可验证的形式。用 playwright-core 驱动真实指针：
-  1. `mouse.move()` 分步移到卡右上角，逐帧读宿主 computed `--t` 与 `--ry` → 断言二者**单调同向**（同源成立）；
-  2. 指针反向移回中心 → 断言 `--t` 跟着回落（可逆过渡）；
-  3. `mouse.leave` 后采样 → 断言 `--t → 0`，且过程中出现过高于终值的峰值（回弹真的发生，不是纯 CSS transition 的单调衰减）；
-  4. `emulateMedia({ reducedMotion: "reduce" })` 下按 `Enter` → 断言 `--ry` 恒 0 而 `--t` 变到 1；
-  5. 键盘 `Tab` 聚焦 + 方向键 → 断言 `aria-valuenow` 变化。
+- **`scripts/tests/lenticular-motion-check.sh`（纯离线，不起浏览器）**：
+  - **段 A —— 纯逻辑（`node --experimental-strip-types`，仿 `board-layout-check.sh` 既有的用法）**：物理与进度住在零依赖的 `src/lib/lenticular-spring.ts`，直接对函数断言：① `progressOf` 在 `amp` 上升段**单调非降**（「两个动画同步」的数学形式）；② 阈值 0.15/0.85 与 smoothstep 端点值；③ 从满倾释放到 0 的模拟里越过零点再收敛（回弹真的存在于数学里，不是 CSS transition 的单调衰减）；④ 固定子步的确定性：同一总时长用 1/30 与 1/120 的帧长驱动，结果差 < 1e-3；⑤ `sweepAngleOf` 在 `amp < 1%·maxTilt` 时返回上一个值；⑥ 由 `DEFAULT_SPRING` 反算的 ζ 与过冲率仍在 0.61/8.7% 附近（防参数被手滑改掉）。
+  - **原计划的段 B（起 dev server 用 `curl` 复查 CSS/JS 产物契约）已取消**：`lenticular-check.sh` 已经在 `npm run build` 后对 `dist/` 逐条断言同一批契约，对 dev 中间态再查一遍是重复劳动。
+  ⚠️ **本仓库的自动化测试不驱动浏览器**（`scripts/tests/` 里无一处），且实测 `playwright-core@1.64` 在本机 **launch 失败**：它要 `chromium_headless_shell-1248`，而 `~/Library/Caches/ms-playwright` 里只有 `chromium-1208` / `webkit-2248`。所以不要尝试在脚本里 `chromium.launch()`——真实指针测量走**终端 playwright-cli**（仓库已有 `.playwright-cli/` 大量截图与测量先例）。
+- **真实浏览器测量清单（终端 playwright-cli 驱动，逐项记录数值）**：
+  1. `mouse.move()` 分步移到卡右上角，逐帧读宿主 computed `--t` 与 `--ry` → 二者**单调同向**；
+  2. 指针反向移回中心 → `--t` 跟着回落（可逆过渡）；
+  3. `mouse.leave` 后采样 → `--t → 0`，且过程中出现过高于终值的峰值（回弹在渲染层也真发生）；
+  4. `emulateMedia({ reducedMotion: "reduce" })` 下按 `Enter` → `--ry` 恒 0 而 `--t` 变到 1；
+  5. 键盘 `Tab` 聚焦 + 方向键 → `aria-valuenow` 变化；
+  6. 帧时：连续 60 帧的 rAF 间隔与 `mask-image` 重绘成本（超 16.7ms 即触发 §7 的 `fade` 逃生门评估）；
+  7. **WebKit 引擎跑一次 1–3**（缓存里有 `webkit-2248`，可经 playwright-cli 指定）——这是 §10 风险 2「Safari 3D+mask 叠层」的实测入口，不能只靠目视。
 - **手动核验（AGENTS.md 要求）**：dev 服务器下明/暗 × 宽/窄四组合目视；确认板面拖拽、右键径向菜单、双击 GlassBubble、分类标签、dev 保存布局全部不受影响（这是 §4 不变量的经验性反证）。
 - **i18n 回归**：`bash scripts/tests/i18n-check.sh` 须仍全绿（动了 `UI_STRINGS`）。
 
