@@ -179,7 +179,7 @@ mask-image: linear-gradient(var(--ma), black calc(var(--c) - var(--feather)),
 
 提示文案不能假定有鼠标：SSR 同时输出「倾斜看另一面」与「拖动看另一面」两条，CSS 用 `@media (hover: hover)` / `(hover: none)` 二选一显示，**零 JS 参与**。
 
-**ARIA 与「读两遍」**：激活态（`data-ready`）下语义由宿主一处收口——`aria-label` = 卡题、`role="slider"`、`aria-valuenow` = `t*100`、`aria-valuetext` = 当前面名（**面名播报由 `valuetext` 承担，因此不需要额外 `aria-live` 区域**，比 AnatomyFigure 的 `.iso-live` 更省）。代价是宿主里两张 `<img>` 的 `alt` 会与 `valuetext` 重复朗读，所以 `mountLenticular` 在置 `data-ready` 的同时把两层 `img.alt` 清为空串（面名已由 `lens-caption` 以可见文字给出，读屏与视觉都能拿到）。**无 JS 的并列态则必须保留完整 `alt`**——那里没有 slider 语义替它说话。这与站内已踩过的那类坑同源：同一句话若在 DOM 里真存两份（哪怕一份只用来撑布局），读屏就会把它读两遍；正解是只留一份真内容，呈现层的重复交给 `::before` 之类的生成内容。
+**ARIA 与「读两遍」，以及 slider 语义只能挂载后才有**：激活态（`data-ready`）下语义由宿主一处收口——`role="slider" tabindex="0"`、`aria-label` = 卡题、`aria-valuenow` = `t*100`、`aria-valuetext` = 当前面名（**面名播报由 `valuetext` 承担，因此不需要额外 `aria-live` 区域**，比 AnatomyFigure 的 `.iso-live` 更省）。代价是宿主里两张 `<img>` 的 `alt` 会与 `valuetext` 重复朗读，所以 `mountLenticular` 在置 `data-ready` 的同时把两层 `img.alt` 清为空串（面名已由各自图层的可见文字给出）。**但 `role="slider"` 绝不能写在 SSR 里**：`slider` 的子树是 presentational 的，静态并列态下它会把两张图的 `alt` 与面名一并从读屏里抹掉，而那一态负责的正是「无 JS 也是完整内容」。因此 slider 语义（role / tabindex / aria-*）全部由 JS 在 `data-ready` 那一刻补上，两态各自成立。这与站内已踩过的那类坑同源：同一句话若在 DOM 里真存两份（哪怕一份只用来撑布局），读屏就会把它读两遍；正解是只留一份真内容，呈现层的重复交给 `::before` 之类的生成内容。
 
 ## 9. i18n
 
@@ -218,7 +218,7 @@ mask-image: linear-gradient(var(--ma), black calc(var(--c) - var(--feather)),
 - **`scripts/tests/lenticular-motion-check.sh`（纯离线，不起浏览器）**：
   - **段 A —— 纯逻辑（`node --experimental-strip-types`，仿 `board-layout-check.sh` 既有的用法）**：物理与进度住在零依赖的 `src/lib/lenticular-spring.ts`，直接对函数断言：① `progressOf` 在 `amp` 上升段**单调非降**（「两个动画同步」的数学形式）；② 阈值 0.15/0.85 与 smoothstep 端点值；③ 从满倾释放到 0 的模拟里越过零点再收敛（回弹真的存在于数学里，不是 CSS transition 的单调衰减）；④ 固定子步的确定性：同一总时长用 1/30 与 1/120 的帧长驱动，结果差 < 1e-3；⑤ `sweepAngleOf` 在 `amp < 1%·maxTilt` 时返回上一个值；⑥ 由 `DEFAULT_SPRING` 反算的 ζ 与过冲率仍在 0.61/8.7% 附近（防参数被手滑改掉）。
   - **原计划的段 B（起 dev server 用 `curl` 复查 CSS/JS 产物契约）已取消**：`lenticular-check.sh` 已经在 `npm run build` 后对 `dist/` 逐条断言同一批契约，对 dev 中间态再查一遍是重复劳动。
-  ⚠️ **本仓库的自动化测试不驱动浏览器**（`scripts/tests/` 里无一处），且实测 `playwright-core@1.64` 在本机 **launch 失败**：它要 `chromium_headless_shell-1248`，而 `~/Library/Caches/ms-playwright` 里只有 `chromium-1208` / `webkit-2248`。所以不要尝试在脚本里 `chromium.launch()`——真实指针测量走**终端 playwright-cli**（仓库已有 `.playwright-cli/` 大量截图与测量先例）。
+  ⚠️ **本仓库的自动化测试不驱动浏览器**（`scripts/tests/` 里无一处）。实施期实测：`playwright-core@1.64` 直接 `chromium.launch()` 会失败（它要 `chromium_headless_shell-1248`，缓存里只有 `chromium-1208`），但**给定 `executablePath` 指到缓存里的 Chromium 就能起**——需要 `emulateMedia` 之类的真引擎验证时可以走一次性探针（依赖本机路径，因此不进 `scripts/tests/`）。`webkit-2248` 则根本起不起来（launch 立即关闭）。
 - **真实浏览器测量清单（终端 playwright-cli 驱动，逐项记录数值）**：
   1. `mouse.move()` 分步移到卡右上角，逐帧读宿主 computed `--t` 与 `--ry` → 二者**单调同向**；
   2. 指针反向移回中心 → `--t` 跟着回落（可逆过渡）；
@@ -229,6 +229,30 @@ mask-image: linear-gradient(var(--ma), black calc(var(--c) - var(--feather)),
   7. **WebKit 引擎跑一次 1–3**（缓存里有 `webkit-2248`，可经 playwright-cli 指定）——这是 §10 风险 2「Safari 3D+mask 叠层」的实测入口，不能只靠目视。
 - **手动核验（AGENTS.md 要求）**：dev 服务器下明/暗 × 宽/窄四组合目视；确认板面拖拽、右键径向菜单、双击 GlassBubble、分类标签、dev 保存布局全部不受影响（这是 §4 不变量的经验性反证）。
 - **i18n 回归**：`bash scripts/tests/i18n-check.sh` 须仍全绿（动了 `UI_STRINGS`）。
+
+### 实测记录（实施期，Chromium 1208 + dev server，2026-10-22）
+
+帧时（每帧派发一个新指针位置，160 帧；单位 ms）：
+
+| 条件 | sweep p50/p95/p99/max | fade p50/p95/p99/max |
+| --- | --- | --- |
+| DPR 1，卡 512×293（出厂尺寸） | 16.7 / 66.2 / 1566 / 2283（含一次外部停顿，见下） | 16.7 / 16.8 / 17.6 / 17.6 |
+| DPR 1，卡拉宽到 666×381 | 16.7 / 34.3 / 183 / 183 | 16.7 / 17.4 / 33.3 / 33.4 |
+| DPR 2，卡 512×293 | 16.7 / 17.7 / 183 / 200 | 16.7 / 17.0 / 17.5 / 17.6 |
+| DPR 2，卡 666×381 | 16.7 / 34.1 / 183 / 183.5 | 16.7 / 32.8 / 33.5 / 34.4 |
+| 终端 playwright 侧独立复测（DPR 1，512×293，各 3 轮） | p50 16.7 / **p95 17.60** / max 18.5 / longtask 0 | p50 16.7 / **p95 17.67** / max 19.97 / longtask 0 |
+
+**结论与决策：默认保持 `sweep`。** 支撑它的只有两条：① 在**实际发布尺寸**（512×293）上两模式无可辨差异（DPR 2 下 17.7 vs 17.0；终端侧独立复测各 3 轮：sweep p95 17.60 / fade p95 17.67，longtask 均为 0），而第一行 sweep 的 p99=1566ms 是一次外部停顿（HMR/加载）污染，不能算进成本；② `fade` 逃生门保留且**只需改一个属性**即可切换，低配设备或放大版式时用得上。
+
+原判据「从未出现 ≈33ms 的整帧丢失」**已删除**：它被同一张表格的 sweep 666×381 行（p95 34.3 / 34.1）正面推翻，而 fade 在同一尺寸也读到 32.8。同理，计划里「sweep p95 ≤ 16.7ms 才保持 sweep」这个阈值本身不成立——两模式 p50 都恰好等于 vsync 的 16.7ms，谁都不达标。
+
+测量方法学上还有一处**未分离的归因**：`applyPointer` 每次 `pointermove` 都读 `stage` 的四个 layout 属性（`offsetLeft/Top/Width/Height`），而上一帧 rAF 刚写过宿主内联样式 → 强制 style+layout。这项成本与 blend 模式无关（fade 一样写 `--t`、一样读那四个数），所以 666×381 那组尾部差异不能干净地归给「mask 每帧重绘」；要重新归因，先把四个偏移随 rect 一起缓存再测。
+
+**reduced-motion 的真渲染验证**（Chromium 的 `reducedMotion: "reduce"` 上下文，这条是浏览器交互工具翻转不了媒体查询而欠下的证据）：挂载后 `lens-stage` computed `transform: none`、`lens-sheen` `display: none`、`lens-face[data-b]` `mask-image: none` 且 `opacity: 0`（= 初始显示图一 ✓）；`Enter` 之后 `--t` = 1、`opacity` = 1、`aria-valuenow` = 100、`aria-valuetext` = 星夜独行，`transform` 仍为 `none`。挂载前的静态并列期 `opacity` 读起来是 1，那是 `[data-ready]` 尚未成立的设计态，不是缺陷。
+
+该项清单初次验证时**漏读了 `translate`**，因而漏过一个真实缺陷：`lens-face{translate:none}` 的特异度输给基础规则 `lens-face[data-a]{translate:…}`，reduce 下两层仍以 ±4.9px 互相滑过（终审时发现并已修：逐层选 `[data-a]`/`[data-b]`，同时补上产物断言）。清单从此补一项 `translate`。
+
+**仍缺的引擎**：本机 WebKit 无法启动（`webkit-2248` 与 `playwright-core@1.64` 期望版本不匹配，launch 立刻关闭），所以 §10 风险 2「Safari 3D + mask 叠层」**只由 Chromium 侧的 `-webkit-mask-image` 前缀与 CSS 断言覆盖，未在真实 Safari 上验过**——需要人工在 Safari/iOS 上目视一次。
 
 ## 12. 交付顺序（供 writing-plans 细化）
 

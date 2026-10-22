@@ -43,3 +43,5 @@
   色散 + 高光（从 Bencho 的 React WebGL 着色器组件移植为原生自主定制元素）。
 - [ScrambleText 解码文字组件](scramble-text.md) —— 一行乱码从左到右逐字锁回真文本
   （从一段 React hook 改写为原生自主定制元素，SSR 出的就是最终文本）。
+- [LenticularCard 光栅卡组件](lenticular-card.md) —— 把它倾到位就换成另一张画面的数字
+  光栅卡（手写弹簧 + CSS mask 扫掠，倾斜与切换同一个量驱动，零依赖）。

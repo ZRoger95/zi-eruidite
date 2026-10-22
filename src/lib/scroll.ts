@@ -4,6 +4,11 @@
  *
  * 实测陷阱：`display: contents` 下 computed `overflowY` 仍为 `auto`
  * （样式规则照常匹配、只是不生成盒子），判定必须同时排除 `contents`。
+ *
+ * 类型陷阱：`target === window` 不收窄 `Window | HTMLElement`——恒等比较
+ * 只对字面量单值收窄，`window` 是 `Window & typeof globalThis` 的对象引用。
+ * 元素分支一律用 `instanceof HTMLElement` 守卫，运行时语义与恒等比较等价
+ * （本模块的元素只可能来自本站 DOM 树，无跨 realm 场景）。
  */
 
 export type ScrollTarget = Window | HTMLElement
@@ -20,7 +25,7 @@ export function activeTarget(): ScrollTarget {
 /** 活跃源当前滚动位置。 */
 export function top(): number {
   const target = activeTarget()
-  return target === window ? window.scrollY : target.scrollTop
+  return target instanceof HTMLElement ? target.scrollTop : window.scrollY
 }
 
 /** 立即（非平滑）滚动活跃源到 `value`。 */
@@ -33,7 +38,9 @@ export function setTop(value: number): void {
 /** 活跃源的视口高度（容器可视高 / 窗口内高）。 */
 export function viewportHeight(): number {
   const target = activeTarget()
-  return target === window ? window.innerHeight : target.clientHeight
+  return target instanceof HTMLElement
+    ? target.clientHeight
+    : window.innerHeight
 }
 
 /**
@@ -43,9 +50,9 @@ export function viewportHeight(): number {
 export function atBottom(): boolean {
   const target = activeTarget()
   const scrollHeight =
-    target === window
-      ? document.documentElement.scrollHeight
-      : target.scrollHeight
+    target instanceof HTMLElement
+      ? target.scrollHeight
+      : document.documentElement.scrollHeight
   const max = scrollHeight - viewportHeight()
   return max > 0 && top() >= max - 2
 }
@@ -54,13 +61,20 @@ export function atBottom(): boolean {
  * 监听滚动。实测：窗口滚动只被 window 监听器收到，元素滚动只被
  * document 捕获监听器收到，故双挂。handler 须幂等（各消费者均幂等）；
  * 回调收到原始事件，可按事件源作进一步过滤。
+ *
+ * 返回一个取消订阅的函数：需要随组件卸载收尾的消费者（如自主定制元素
+ * 的 disconnectedCallback）直接调它，不必自己再复制一遍双挂细节。
  */
-export function onScroll(handler: (event: Event) => void): void {
+export function onScroll(handler: (event: Event) => void): () => void {
   window.addEventListener("scroll", handler, { passive: true })
   document.addEventListener("scroll", handler, {
     capture: true,
     passive: true,
   })
+  return () => {
+    window.removeEventListener("scroll", handler)
+    document.removeEventListener("scroll", handler, { capture: true })
+  }
 }
 
 /** 实测滚动条宽度写入 `--scrollbar-width`（容器非激活态重置为 0）。 */
@@ -95,8 +109,7 @@ export function initScroll(): void {
     // 仅记录来自当前活跃源的滚动：模式切换后旧目标（如窗口 clamp）的
     // 收尾事件会在新目标上读出偏值，照单全收会污染迁移源位置。
     const node = event.target
-    const source =
-      node === document || node === window ? window : (node as ScrollTarget)
+    const source: ScrollTarget = node instanceof HTMLElement ? node : window
     if (source !== activeTarget()) return
     lastTop = top()
   })
