@@ -356,6 +356,38 @@ function stampMaskUrl(w: number, h: number): string {
   <!-- 板下提示行：只在客户端激活后出现（stamp-board[data-interactive]），
        不然无 JS 时它在承诺一个不存在的交互 -->
   <board-hint>{t(locale, "boardHint")}</board-hint>
+  <!-- 原图预览：双击邮票打开（showModal 把原生 dialog 提升到顶层，板面 clip 关不住它；
+       自定义元素名带不来 showModal/Esc/焦点陷阱，必须用真 <dialog> + class）。
+       骨架 SSR 静态渲染，未 open 时由 dialog 的 UA 规则天然隐藏（不另加 hidden——
+       reset.css 的 [hidden] 压得过显示、抽不掉隐藏时机）；泡与图全由 JS 建，无 JS 时
+       双击无响应、不承诺不存在的交互（同浮层惯例）。宿主留在 stamp-board 下、board-grid 外，
+       打开时浏览器把它提升到顶层、原地不留占位。dialog 与关闭钮的样式在全局
+       glass-bubble.css（前缀 dialog.board-preview），玻璃泡本体自带全局样式。 -->
+  <dialog
+    class="board-preview"
+    aria-label={t(locale, "boardPreview")}
+    data-bubble-label={t(locale, "boardBubbleHint")}
+  >
+    <button
+      type="button"
+      class="preview-close"
+      aria-label={t(locale, "boardPreviewClose")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <path d="M6 6l12 12" />
+        <path d="M18 6 6 18" />
+      </svg>
+    </button>
+  </dialog>
   <!-- dev 布局保存浮条：组件自带 import.meta.env.PROD 早退，生产 HTML 无 markup、
        端点也不存在（apply:serve）；少量 scoped 死样式残留与 MomentComposer 同款。
        点击把当前板面几何经 POST /api/board/layout 逐字段写回 src/data/board.ts。 -->
@@ -858,6 +890,11 @@ function stampMaskUrl(w: number, h: number): string {
     }
   }
 
+  /* 预览 dialog 的呈现住在玻璃泡同族的全局 CSS 里（泡与图是 JS 动态建的，
+     scoped 选不中）。这里不另钉关闭态：UA 的 dialog:not([open]) 已负责隐藏，
+     实测 showModal 并不会移除骨架上的 hidden 属性，再写一条
+     dialog.board-preview[hidden] 会把打开着的弹窗永久拍死 */
+
   /* 窄屏回退：忽略绝对坐标，排成只读网格，拖拽无关样式关闭，浮层与提示隐藏 */
   @media (width < 64rem) {
     /* 得跟 `stamp-board[data-interactive] board-hint` 同特异度才能赢过它 */
@@ -890,6 +927,13 @@ function stampMaskUrl(w: number, h: number): string {
 </style>
 
 <script>
+  import { GLASS_DEFAULTS } from "@/lib/glass-bubble"
+  import { registerGlassBubble } from "@/lib/glass-bubble-element"
+
+  // 双击原图预览动态建 <glass-bubble>，先得有注册；与 GlassBubble.astro 静态
+  // 用法共用同一实现（内部有守卫，两处都加载也只注册一次）
+  registerGlassBubble()
+
   if (!customElements.get("stamp-board")) {
     customElements.define(
       "stamp-board",
@@ -1300,6 +1344,70 @@ function stampMaskUrl(w: number, h: number): string {
             rect = null
           }
 
+          // 原图预览：双击一枚邮票，把图里那张原图整张搬进 dialog 里的玻璃泡下
+          // （.stamp-img 就是同一张图，未裁切、未放大，只是被邮票框遮住四周）。
+          // 徽章不绑——单击会先导航，双击还没成形页面就跳走了
+          const dlg = this.querySelector<HTMLDialogElement>(
+            "dialog.board-preview",
+          )
+          const openPreview = (p: HTMLElement) => {
+            const img = p.querySelector<HTMLImageElement>(".stamp-img")
+            if (!dlg || !img?.src) return
+            exitPicked()
+            // 泡的画布逻辑尺寸 620，宿主 CSS 盒 min(100%, 620px)；按视口取整，
+            // 手机上不为预览备一块超出显示尺寸的大画布
+            const box = Math.min(innerWidth - 48, innerHeight - 96, 620)
+            let bubble: HTMLElement | null = null
+            dlg.querySelector("glass-bubble")?.remove()
+            if (box >= 280) {
+              bubble = document.createElement("glass-bubble")
+              bubble.dataset.src = img.src
+              bubble.dataset.size = String(
+                Math.round(clamp(box * 0.29, 100, 280)),
+              )
+              bubble.dataset.label =
+                dlg.dataset.bubbleLabel ?? GLASS_DEFAULTS.label
+            }
+            // 静态降级图：挂进泡内部（而非兄弟），让组件自带的
+            // `glass-bubble[data-active] > img` 规则在有 WebGL 时藏掉它、无 WebGL
+            // 时才露出——动态建泡绕过了 Astro 组件的 SSR 图，故自己补一张
+            const still = document.createElement("img")
+            still.src = img.src
+            still.alt = p.getAttribute("aria-label") ?? ""
+            still.decoding = "async"
+            const closeBtn = [...dlg.children]
+            if (bubble) {
+              bubble.append(still)
+              dlg.replaceChildren(bubble, ...closeBtn)
+            } else {
+              dlg.replaceChildren(still, ...closeBtn)
+            }
+            // 双保险：隐掉 hidden（reset.css 的 [hidden] 规则会压过 dialog
+            // 的 UA 显示，实测 showModal 并非在所有浏览器都自动移它），再走原生 modal
+            dlg.hidden = false
+            if (!dlg.open) dlg.showModal()
+          }
+          const closePreview = () => {
+            if (!dlg?.open) return
+            dlg.close()
+            // 摘掉泡：disconnect 触发组件的 destroy，释放 WebGL 上下文
+            dlg.querySelector("glass-bubble")?.remove()
+          }
+          dlg?.addEventListener("click", (e) => {
+            if ((e.target as HTMLElement).closest(".preview-close")) {
+              closePreview()
+              return
+            }
+            // 点图区以外的背景（含 ::backdrop 的点击）也收
+            if (e.target === dlg) closePreview()
+          })
+          // 关后把焦点还给唤起的那枚：标准“焦点回宿主”，不留在 body 上
+          let previewPiece: HTMLElement | null = null
+          dlg?.addEventListener("close", () => {
+            previewPiece?.focus({ preventScroll: true })
+            previewPiece = null
+          })
+
           const onDown = (e: PointerEvent) => {
             const piece = e.currentTarget as HTMLElement
             if (e.button !== 0 && e.pointerType === "mouse") return
@@ -1343,13 +1451,22 @@ function stampMaskUrl(w: number, h: number): string {
             }
           }
 
-          // 宽屏才给物件可聚焦（窄屏只读网格不该往 tab 序里塞 7 个停靠点）
+          // 宽屏才给物件可聚焦（窄屏只读网格不该往 tab 序里塞 7 个停靠点）；
+          // 双击预览与拖拽同档：窄屏网格上不绑
           const enable = (on: boolean) =>
             pieces.forEach((p) => {
               p.tabIndex = on ? 0 : -1
-              on
-                ? p.addEventListener("pointerdown", onDown)
-                : p.removeEventListener("pointerdown", onDown)
+              if (on) {
+                p.addEventListener("pointerdown", onDown)
+                p.addEventListener("dblclick", () => {
+                  if (p.dataset.kind === "stamp") {
+                    previewPiece = p
+                    openPreview(p)
+                  }
+                })
+              } else {
+                p.removeEventListener("pointerdown", onDown)
+              }
             })
 
           mq.addEventListener("change", () => {

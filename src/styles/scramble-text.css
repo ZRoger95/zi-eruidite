@@ -1,0 +1,46 @@
+/* ══ Scramble text ═══════════════════════════════════════════
+   See src/lib/scramble-text.ts + src/components/ScrambleText.astro.
+
+   DOM 里只有一份真文本（.sct-live），它负责被读、被复制、被爬虫索引；
+   撑盒子的是宿主自己的 ::before —— 内容从 data-text 生成，visibility:
+   hidden 只不出像素、照样占位，所以宽度与换行点始终等于最终文本，而
+   它不进无障碍树、也不进正文抽取。乱码层绝对定位铺在同一个盒子里接手
+   像素：换一个比原字符宽的符号，也推不动这一行。
+   （早先这里是「幽灵层 + 乱码层」两份 DOM 文本，接到主页 h1 上就变成
+   站名被读两遍，故改成现在这个写法。）
+
+   等宽字面让两层逐格等宽；换成非等宽时外层宽度仍然不动，只有行内间距
+   会随符号宽窄呼吸。 */
+scramble-text {
+  display: inline-block;
+  position: relative;
+  font-family: var(--font-mono);
+  /* 连字会把 n 个字符画成少于 n 个字形，乱码层就数不对格子 */
+  font-variant-ligatures: none;
+  letter-spacing: 0.02em;
+  /* 盒子说一不二：绝对定位的乱码层万一某帧比盒子宽（非等宽字面下换行点漂了），
+     宁可裁掉也不让它把宿主撑宽、更不许盖到下面的正文上 */
+  overflow: clip;
+}
+
+/* face="inherit"：字面与字距都跟着宿主走，一段标题解码完仍是那行标题。
+   代价是符号不再逐格等宽，churn 期间行内间距会呼吸（外层宽度由 ::before
+   锁死，整行不会位移） */
+scramble-text[data-face="inherit"] {
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+/* 撑位层：与最终文本同字面同字距，因此盒子就是最终文本的盒子 */
+scramble-text::before {
+  content: attr(data-text);
+  visibility: hidden;
+  white-space: pre-wrap;
+}
+
+/* 真文本层：从挂载前到落定都画在这里，绝对定位使它对盒子尺寸没有发言权 */
+scramble-text > .sct-live {
+  position: absolute;
+  inset: 0;
+  white-space: pre-wrap;
+}

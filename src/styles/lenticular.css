@@ -1,0 +1,259 @@
+/* 数字光栅卡（自主定制元素 <lenticular-card>）：全局样式，随 Layout.astro 引入。
+   本文件是渲染契约唯一的消费者——JS 每帧只往宿主写 --rx / --ry / --t（+ 离散的
+   --ma），长相全部在这里声明式表达。数值取自 spec §6/§7，调外观不必动 TS。
+
+   Task 1 只建静态骨架：两张画面上下并列（无 JS 也是完整内容），提示文案先全藏，
+   等 Task 2 补 @media (hover) 的二选一规则。 */
+
+/* ---------- 渲染契约：JS 每帧只往宿主写这几个数 ----------
+   注册 @property 只为一个目的：让 --t 可被 CSS transition 抢下（reduced-motion
+   分支走这条路，见文末）。但默认值**不依赖** initial-value——Firefox <128 /
+   Safari <16.4 不认 @property，无 JS 时更是一个脚本都不跑，所以宿主上另写一份
+   普通声明兜住（两份共存是故意的，不是冗余）。 */
+@property --rx {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --ry {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --t {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --ma {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 90deg;
+}
+
+lenticular-card {
+  display: block;
+  box-sizing: border-box;
+  /* 定位锚点：JS 用「宿主 rect + lens-stage 的 layout 偏移」算指针位置
+     （不能拿 stage 自己的 getBoundingClientRect：那是变换后的包络盒，
+     倾角一变映射就跟着漂，会自反馈抖动），所以宿主必须是定位上下文 */
+  position: relative;
+  /* 32rem：比周围邮票明显大一号，横版卡在这个宽度上倾斜与切换才看得见；
+     窄屏靠 min() 自然收窄，不设断点 */
+  width: min(32rem, 100%);
+  /* 与板面留一口气：零间距时两块底色直接相接（暗色下网格底与画面暗部连成一片）。
+     16px 不是凑数：实测满倾（rx≈ry≈13.8°）时 3D 包络上移 15.2px，14px 时仍差
+     1.2px 会咬进网格底边（上一版注释里估的「约 6px」是错的） */
+  margin-block: var(--space-s) 0;
+  margin-inline: auto;
+  /* 兜底默认值（与上面的 @property 共存）：画面二在 t=0 时一点不露 */
+  --rx: 0;
+  --ry: 0;
+  --t: 0;
+  --ma: 90deg;
+  --feather: 9%;
+  /* 扫掠边界中心：从卡外 -f 推到卡外 100%+f。两侧各留一个羽化宽在卡外是必要的：
+     若写成 var(--t)*100% ± f，t=0 时卡边缘正落在羽化带中间，会露出半透明的图2。
+     --c 刻意**不**注册 @property：它是 --t 的派生量，插值只发生在 --t 上，
+     两个量各拿一套时间曲线就会失同步 */
+  --c: calc(var(--t) * (100% + 2 * var(--feather)) - var(--feather));
+  /* 透视在宿主：卡对宿主占一个平面，只让 lens-stage 做 3D 变换。900px 对
+     ≈512px 宽的卡既能看出纵深，又不至于鱼眼 */
+  perspective: 900px;
+}
+
+lens-stage {
+  display: block;
+  position: relative;
+  /* 静态并列态不规定比例：aspect-ratio 与 overflow 属于「卡」这个形态（两面叠成
+     一张），不归「两张内容上下并列」。那些进 [data-ready] 块，见 Task 2 */
+  border-radius: var(--radius-md, 0.5rem);
+  background-color: var(--card, var(--background));
+}
+
+/* 静态并列态：两张都是内容，谁也不盖谁（激活后 Task 2 把它俩叠合） */
+lens-face {
+  display: block;
+  position: relative;
+}
+
+lens-face .lens-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+lens-sheen {
+  display: none;
+}
+
+lens-caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3xs) var(--space-2xs);
+  align-items: baseline;
+  justify-content: center;
+  margin-top: var(--space-2xs);
+  color: var(--muted-foreground);
+  font-size: var(--step--1);
+}
+
+.lens-card-title {
+  font-weight: 500;
+}
+
+/* 两条提示先都收着：Task 2 用 @media (hover: hover|none) 各放一条，
+   免得当着触屏读者的面承诺一个不存在的鼠标手势 */
+.lens-hint {
+  display: none;
+}
+
+/* ---------- 激活态：两面叠成一张卡（data-ready 由 Task 4 的 JS 写） ---------- */
+
+/* 卡是一个平面：只变 lens-stage 一次，内部两层是共面兄弟，所以下面**不开**
+   transform-style: preserve-3d——也就不怕 mask / mix-blend 把 3D 压平那类坑。
+   投影给 3D 节点自身带 box-shadow 是安全的；绝对不要用 filter: drop-shadow()，
+   filter 会压平子树的 3D 并让节点自成为 containing block */
+lenticular-card[data-ready] lens-stage {
+  aspect-ratio: 1.75;
+  overflow: clip;
+  /* mix-blend-mode 的混合范围靠层叠上下文兜住，否则会污染板面底色
+     （与板面 isolation: isolate 同一课：负 z / 混合会掉到背景之下） */
+  isolation: isolate;
+  transform: rotateX(calc(var(--rx) * 1deg)) rotateY(calc(var(--ry) * 1deg));
+  /* 只留外投影给“抬起来”的高度感。轮廓**不能**放这里：inset box-shadow 画在
+     后代内容之下，会被 1.04 超尺寸的不透明画面整圈盖住（实测 12px 洋红 inset
+     完全不可见），改由下面 lens-stage::after 那个覆盖层描 */
+  box-shadow:
+    calc(var(--ry) * -0.8px) calc(12px + var(--rx) * 0.8px) 28px -6px
+      light-dark(rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.55));
+}
+
+/* 主题自适应的 1px rim。暗色主题下板底本身就是接近黑的色，纯黑投影等于看不见，
+   星夜那种大片深色画面会整张沉进背景里（实测：底边亮度与页面背景同为 L 17 左右），
+   所以轮廓必须画在画面**之上**——靠不参与布局的覆盖层，而不是 inset shadow */
+lenticular-card[data-ready] lens-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px
+    light-dark(rgb(0 0 0 / 0.14), rgb(255 255 255 / 0.28));
+}
+
+lenticular-card[data-ready] lens-face {
+  position: absolute;
+  inset: 0;
+}
+
+/* 轻微视差：两层沿角度反向偏移（14° 约 5px）。两张是不同构图，没有视差时
+   擦除感会盖过「同一张卡换了画面」。1.04 超尺寸是为了不让偏移露底 */
+lenticular-card[data-ready] .lens-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  scale: 1.04;
+}
+
+lenticular-card[data-ready] lens-face[data-a] {
+  translate: calc(var(--ry) * -0.35px) calc(var(--rx) * 0.35px);
+}
+
+lenticular-card[data-ready] lens-face[data-b] {
+  translate: calc(var(--ry) * 0.35px) calc(var(--rx) * -0.35px);
+  /* 软边界扫掠：起点侧（抬起的那一侧）先亮出新画面。--ma 由 JS 取倾斜主轴
+     符号，所以“哪一侧被抬起来”与“从哪一侧开始换”是同一件事 */
+  -webkit-mask-image: linear-gradient(
+    var(--ma),
+    black calc(var(--c) - var(--feather)),
+    transparent calc(var(--c) + var(--feather))
+  );
+  mask-image: linear-gradient(
+    var(--ma),
+    black calc(var(--c) - var(--feather)),
+    transparent calc(var(--c) + var(--feather))
+  );
+}
+
+/* 高光：这就是「塑料卡」区别于「淡入淡出」的关键一层。中心随角度走，
+   不靠 background-position（渐变默认铺满盒子，百分比位移没有效果），而是推 stop */
+lenticular-card[data-ready] lens-sheen {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: calc(0.35 + var(--t) * 0.15);
+  mix-blend-mode: soft-light;
+  background-image: linear-gradient(
+    105deg,
+    transparent calc(35% + var(--ry) * 3%),
+    rgb(255 255 255 / 0.55) calc(50% + var(--ry) * 3%),
+    transparent calc(65% + var(--ry) * 3%)
+  );
+}
+
+/* 逃生门：mask 每帧重绘不进合成层。若实测帧时不划算，一个属性改走
+   两层 opacity 互补（无 mask），TS 一行不用改 */
+lenticular-card[data-blend="fade"][data-ready] lens-face[data-b] {
+  -webkit-mask-image: none;
+  mask-image: none;
+  opacity: var(--t);
+}
+
+/* ---------- 提示文案：能力而非宽度决定写哪一条 ---------- */
+/* 两条都 SSR 在 DOM 里，CSS 二选一：零 JS 参与，也不得对触屏读者
+   承诺一个不存在的鼠标手势 */
+@media (hover: hover) {
+  .lens-hint[data-hint="pointer"] {
+    display: inline;
+  }
+}
+
+@media (hover: none) {
+  .lens-hint[data-hint="touch"] {
+    display: inline;
+  }
+}
+
+/* ---------- reduced-motion：不做倾斜、不做高光、只换画面 ---------- */
+/* JS 侧不启 rAF，直接把目标 --t 一写，平滑交给下面这条 transition
+   （这就是上面要注册 @property 的理由：未注册的自定义属性不可动画）。
+   画面仍然能切换——reduced-motion 不得夺走内容 */
+@media (prefers-reduced-motion: reduce) {
+  lenticular-card {
+    transition: --t 220ms ease;
+  }
+
+  lenticular-card[data-ready] lens-stage {
+    transform: none;
+    box-shadow:
+      0 12px 28px -6px light-dark(rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.55));
+  }
+
+  /* 视差平移也得归零。基础规则带 [data-a] / [data-b]，特异度比裸 `lens-face`
+     高一级，只写 `lens-face{translate:none}` 抢不外（实测：reduce 下 transform 已
+     归零而两层仍以 ±4.9px 互相滑过）——所以下面逐层选它本身 */
+  lenticular-card[data-ready] lens-face[data-a],
+  lenticular-card[data-ready] lens-face[data-b] {
+    translate: none;
+  }
+
+  lenticular-card[data-ready] lens-sheen {
+    display: none;
+  }
+
+  /* mask 边界不随角度动，退成两层互补 */
+  lenticular-card[data-ready] lens-face[data-b] {
+    -webkit-mask-image: none;
+    mask-image: none;
+    opacity: var(--t);
+  }
+}
+
+/* ---------- 键盘入口：焦点环跟全站 accent 一致 ---------- */
+lenticular-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}

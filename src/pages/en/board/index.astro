@@ -3,6 +3,7 @@ import Layout from "@/layouts/Layout.astro"
 import MetaPage from "@/components/MetaPage.astro"
 import ListingHead from "@/components/ListingHead.astro"
 import Board from "@/components/Board.astro"
+import LenticularSection from "@/components/LenticularSection.astro"
 import { getBoardViews } from "@/lib/content"
 
 const items = await getBoardViews("en")
@@ -21,4 +22,6 @@ const items = await getBoardViews("en")
     desc="Stamps (including custom stamps built from any image) and tech-stack badges, laid out on one board. Grab a piece and drag it anywhere to rearrange the collage."
   />
   <Board locale="en" />
+  <ListingHead kicker={`~/LenticularCard`} title="Lenticular Card" />
+  <LenticularSection locale="en" />
 </Layout>

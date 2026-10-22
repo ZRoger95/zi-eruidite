@@ -1,0 +1,94 @@
+---
+import {
+  SCRAMBLE_DEFAULTS,
+  type ScrambleFace,
+  type ScrambleTrigger,
+} from "@/lib/scramble-text"
+
+type Props = {
+  /** 要解码的那段文字。逐码点替换乱码，所以只收纯文本；富文本请写在外面 */
+  text: string
+  /** 何时开演：`load` 挂载即演、`hover` 指针进入重演、`manual` 由外部调 `play()` */
+  trigger?: ScrambleTrigger
+  /** 一帧毫秒数（节奏，不是刷新率），下限 1 */
+  speed?: number
+  /** 右边相邻字符比左边晚锁定几帧 */
+  stagger?: number
+  /** 单个字符持续乱码多少帧后锁定 */
+  settle?: number
+  /** 开演前的等待毫秒数（`load` 与 `hover` 都生效） */
+  delay?: number
+  /** 乱码符号池；等宽池最稳，中文里想不挪位就用全角符号 */
+  pool?: string
+  /** `mono` 走等宽字面（逐格不动）；`inherit` 跟着宿主字体与字距走，标题还是标题 */
+  face?: ScrambleFace
+  /** 追加到宿主的 class */
+  class?: string
+}
+
+const {
+  text,
+  trigger = SCRAMBLE_DEFAULTS.trigger,
+  speed = SCRAMBLE_DEFAULTS.speed,
+  stagger = SCRAMBLE_DEFAULTS.stagger,
+  settle = SCRAMBLE_DEFAULTS.settle,
+  delay = SCRAMBLE_DEFAULTS.delay,
+  pool = SCRAMBLE_DEFAULTS.pool,
+  face = "mono",
+  class: klass,
+} = Astro.props
+---
+
+<scramble-text
+  class:list={[klass]}
+  data-text={text}
+  data-trigger={trigger}
+  data-speed={speed}
+  data-stagger={stagger}
+  data-settle={settle}
+  data-delay={delay}
+  data-pool={pool}
+  data-face={face === "mono" ? undefined : face}
+  ><!--
+  只有一份真文本：它住在这个 span 里（爬虫/读屏/选中复制看到的就是它，
+  不会像标题内两层叠字那样把站名读两遍）。盒子宽度由宿主的
+  ::before【content: attr(data-text)】在 CSS 里隐形撑住（见 scramble-text.css），
+  乱码层绝对定位铺在同一个盒子里，换一个比原字符宽的符号也推不动这一行。
+  --><span class="sct-live">{text}</span></scramble-text
+>
+
+<script>
+  import {
+    mountScrambleText,
+    type ScrambleTextHandle,
+  } from "@/lib/scramble-text"
+
+  /**
+   * Autonomous custom element：SSR 出的两层都是最终文本，挂载后才让乱码
+   * 层上台（旋钮全部读宿主 data-*）。`trigger="manual"` 的入口是元素上的
+   * play()。View Transitions 会重跑 body 脚本，故加已注册守卫；断开时销毁，
+   * 免得 rAF 活过它的页面。
+   */
+  if (!customElements.get("scramble-text")) {
+    customElements.define(
+      "scramble-text",
+      class extends HTMLElement {
+        #handle: ScrambleTextHandle | null = null
+
+        connectedCallback(): void {
+          if (this.#handle) return
+          this.#handle = mountScrambleText(this)
+        }
+
+        disconnectedCallback(): void {
+          this.#handle?.destroy()
+          this.#handle = null
+        }
+
+        play(): void {
+          this.#handle?.play()
+        }
+      },
+    )
+  }
+</script>

@@ -1,0 +1,28 @@
+---
+import cloudseaImg from "@/assets/board/DONGLONGDONG-2.jpg"
+import galaxyImg from "@/assets/board/DONGLONGDONG-3.jpg"
+import type { Locale } from "@/lib/i18n"
+import LenticularCard from "./LenticularCard.astro"
+
+type Props = {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+
+// 光栅卡两面直接引用板上那两张邮票的原图，不再经 getBoardViews 取 view——卡只吃图，
+// 与板的展示逻辑解耦。这两枚邮票只有 zh 文案（en 本就回落中文），故 alt 就地写中文
+// 常量，与解耦前的产物一致。卡不再叠面名，读屏播报由 LenticularCard 用各自的 alt 兜底。
+const altA =
+  "一幅横版邮票插画（@DONGLONGDONG COLOR #106），少年坐在岩石上对着巨大积雨云作画"
+const altB =
+  "一幅横版邮票插画（@DONGLONGDONG COLOR #97），少年提着灯仰望银河星空"
+---
+
+<LenticularCard
+  locale={locale}
+  srcA={cloudseaImg}
+  srcB={galaxyImg}
+  altA={altA}
+  altB={altB}
+/>

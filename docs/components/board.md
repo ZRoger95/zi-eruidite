@@ -6,7 +6,9 @@
 框的「自定义邮票」）与技术栈徽章混排在同一块板上，访客用鼠标拖住任意物件即可自由
 重新摆放；拿起物件不靠板下工具条（已撤），而是在物件上右键（触屏长按、键盘 Tab 到
 物件按 Enter 等价），在其外上角弹出一圈径向操作浮层，可缩放、旋转、镜像、调叠放
-次序，点板面空白即放下。面向 `/board`、`/en/board` 两个页面。
+次序，点板面空白即放下；双击一枚邮票则弹出原图预览——整张原图摆进
+[GlassBubble](./glass-bubble.md) 玻璃泡下，可隔着泡拖动观看。面向 `/board`、`/en/board`
+两个页面。
 
 ## 2. 文件位置
 
@@ -14,7 +16,9 @@
 - 取数：`src/lib/content.ts` 的 `getBoardViews(locale)` 与 `BoardView` 类型。
 - 内容：`src/data/board.ts` 的 `BOARD_ITEMS: BoardItem[]` 纯数据模块（原 `board`
   内容集合已迁出）；图片在 `src/assets/board/`；双语为条目内联 `L10n = { zh, en? }`。
-- 样式：全部内联在 `Board.astro` 的 `<style>`（齿孔/徽章/网格/窄屏回退），无全局引入。
+- 样式：主体内联在 `Board.astro` 的 `<style>`（齿孔/徽章/网格/窄屏回退）；原图预览
+dialog（`<dialog class="board-preview">`）的呈现住在 `src/styles/glass-bubble.css`（全局，因泡与图
+  是 JS 动态建的，scoped 选不中）。
 - 路由：`src/pages/board/index.astro`、`src/pages/en/board/index.astro`。
 - 回归：`scripts/tests/board-check.sh`（另在 `i18n-check.sh` 有 `/en/board` 断言）。
 
@@ -70,17 +74,18 @@ import Board from "@/components/Board.astro"
 
 - **无 JS**：SSR 已把每枚物件按默认 `--x/--y/--rot` 绝对定位铺好，板即作者预设的
   静态拼贴画，可读；带 `href` 的徽章仍可点。浮层 `<board-menu hidden>`、信息卡片
-  `<board-card hidden>` 与板下提示行都不出现（`board-hint` 默认 `display: none`，靠
+  `<board-card hidden>`、原图预览 `<board-preview hidden>` 与板下提示行都不出现（`board-hint` 默认 `display: none`，靠
   `stamp-board[data-interactive]` 才亮）——
   提示行不能在无 JS 时承诺一个不存在的交互。SSR 默认 `data-tool="drag"`。
 - **窄屏（`< 64rem`）**：`<board-grid>` 切成只读 CSS 网格，忽略坐标/旋转，拖拽不绑定，
-  按 `z` 顺序陈列；浮层、信息卡片与提示行一并隐藏，物件也不进 tab 序（`tabIndex` 由
+  按 `z` 顺序陈列；浮层、信息卡片、双击预览与提示行一并禁用，物件也不进 tab 序（`tabIndex` 由
   `enable()` 随断点设 0/−1）。
 - **键盘**：宽屏下每枚 `board-piece` 可 Tab 聚焦（`:focus-visible` 走全站 accent 焦点环），
   Enter / 空格 / 菜单键 / Shift+F10 拿起物件并展开浮层；浮层是 `role="toolbar"` +
   roving tabindex，方向键在 8 枚钮间走位、Enter/空格执行、Esc 放下并把焦点还给物件；
   信息卡片开着时 Esc 先关卡片（焦点回物件）、浮层保留，再按才放下物件。
-  仍不做键盘方向键调位（挪动只靠拖拽）。
+  仍不做键盘方向键调位（挪动只靠拖拽）。原图预览只有鼠标双击入口（无键盘等价）；
+  但预览 dialog 本身可键盘操作：Tab 到关闭钮、Esc 关闭（原生 dialog 自带）。
 - **触屏**：长按物件 500ms 等价于右键唤出浮层，并取代浏览器原生长按菜单（物件上
   `-webkit-touch-callout: none`，非鼠标 `pointerType` 的 `contextmenu` 也 `preventDefault`）；
   手指越过拖拽阈值即拆掉长按 Timer，“拖”与“长按”互不抢。
@@ -130,6 +135,22 @@ import Board from "@/components/Board.astro"
   右边时翻到物件左缘对齐，下方放不下翻到上方，四边夹进板内；带关闭钮（焦点回物件）。
   卡片是 `stamp-board` 直接子元素、不在 `board-piece` 内，故来源链接不受拿起态的
   capture 拦截，拿起中也能正常新标签打开。
+- **原图预览（`dialog.board-preview`）**：双击一枚邮票（`data-kind="stamp"`）把图里那张
+  原图（`.stamp-img`，同一张图未裁切版）整张搬进 dialog 里的玻璃泡下。机制：
+  - 骨架是 SSR 的**原生 `<dialog class="board-preview">`**（`hidden` 默认不可见；自
+    定义元素名带不来 `showModal`/Esc/焦点陷阱，故不用）；`showModal()` 把它提升到
+    浏览器顶层——故它虽住在 `stamp-board` 下、板面 `overflow: clip` 仍关不住它；
+    Esc/背景点击/右上角关闭钮都走 `close()`，`close` 事件把焦点还给唤起的那枚物件。
+  - 泡是 JS 动态 `createElement("glass-bubble")`（data-src/data-size/data-label 从物件
+    与骨架 `data-bubble-label` 取）。注意：Astro **只把渲染过一次的组件脚本带上页面**，
+    本页不再渲染 `<GlassBubble>` 组件，注册带不过来，故 Board.astro 的脚本自己调
+    `registerGlassBubble()`（`src/lib/glass-bubble-element.ts`，与组件静态用法共用同一
+    实现，内部 `customElements.get` 守卫保证两处都加载也只注册一次）。关闭时摘掉泡，
+    disconnect 触发组件 `destroy()` 释放 WebGL 上下文（预览期间只挂一块画布）。
+  - 画布尺寸按视口取（封顶逻辑 620），球径按盒宽约 29% 随尺寸缩放；过小的盒
+    （<280px，对应约 `innerWidth < 328`）不建泡、只显静态原图（降级同 GlassBubble）。
+  - 徽章不绑双击：单击会先导航，双击还没成形页面就跳走了。
+  - 打开预览前先 `exitPicked()` 放下拿起中的物件，两套 UI 不同屏。
 - **边界**：`--x/--y` 夹在 `[0, 1 − 物件尺寸/板尺寸]`，拖不出板外；板 `overflow: clip`
   防横向滚动条。
 - **齿孔实现**：`.stamp` 用**构建期生成的 SVG 矢量齿孔轮廓**做 `mask-image`（`Board.astro`

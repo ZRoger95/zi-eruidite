@@ -1,0 +1,124 @@
+---
+import type { ImageMetadata } from "astro"
+import { Image } from "astro:assets"
+import type { Locale } from "@/lib/i18n"
+import { t } from "@/lib/i18n"
+
+/**
+ * 数字光栅卡：平放是画面一，把它倾到位，画面二沿倾斜方向被软边界扫出来。
+ *
+ * 本任务只出静态卡（两张图上下并列，两张都是内容，无 JS 也读得到）。
+ * Task 4 才挂 `<script>` 注册 `lenticular-card` 并写 `data-ready`，CSS 届时
+ * 把并列态切成叠合态（见 lenticular.css）。
+ */
+type Props = {
+  locale: Locale
+  /** 画面一 / 画面二（走 Astro 图片优化，中英共用） */
+  srcA: ImageMetadata
+  srcB: ImageMetadata
+  /** 两面替代文本：静态态给图片说话，挂载后由它转成 aria-valuetext 播报当前面 */
+  altA: string
+  altB: string
+  /** 最大倾角（度） */
+  maxTilt?: number
+  stiffness?: number
+  damping?: number
+  /** sweep = 软边界扫掠；fade = 两层 opacity 互补（mask 重绘不起作用时的退路） */
+  blend?: "sweep" | "fade"
+  class?: string
+}
+
+const {
+  locale,
+  srcA,
+  srcB,
+  altA,
+  altB,
+  maxTilt = 14,
+  stiffness = 170,
+  damping = 16,
+  blend = "sweep",
+  class: klass,
+} = Astro.props
+
+const cardTitle = t(locale, "boardLensTitle")
+---
+
+<lenticular-card
+  class:list={[klass]}
+  data-label={cardTitle}
+  data-max-tilt={maxTilt}
+  data-stiffness={stiffness}
+  data-damping={damping}
+  data-blend={blend}
+>
+  <!-- slider 语义（role / tabindex / aria-*）**不在这里写**：role=slider 的子树是
+       presentational 的，静态并列态下它会把两张图的 alt 一并从读屏里抹掉，
+       而静态态恰恰是「两张图都是完整内容」那一态。由 mountLenticular 在写
+       data-ready（已经叠成一张卡）的同时补上，两态各自成立。
+       一张平面卡：两层画面是共面兄弟，不是 3D 空间里的两片，故 CSS 侧
+       不需要 transform-style: preserve-3d（也就不怕 filter 把它压平）。
+       卡上不再叠面名文字：当前面由 mountLenticular 用各自的 alt 转成
+       aria-valuetext 播报，画面本身即内容。 -->
+  <lens-stage>
+    <lens-face data-a="1">
+      <Image
+        src={srcA}
+        alt={altA}
+        width={560}
+        class="lens-img"
+        loading="lazy"
+        decoding="async"
+      />
+    </lens-face>
+    <lens-face data-b="1">
+      <Image
+        src={srcB}
+        alt={altB}
+        width={560}
+        class="lens-img"
+        loading="lazy"
+        decoding="async"
+      />
+    </lens-face>
+    <lens-sheen aria-hidden="true"></lens-sheen>
+  </lens-stage>
+  <lens-caption>
+    <span class="lens-card-title">{cardTitle}</span><!--
+    两条提示都 SSR 出来，由 CSS 的 @media (hover) 二选一显示：
+    无 JS 时也不许对触屏读者承诺一个不存在的鼠标手势
+    --><span class="lens-hint" data-hint="pointer"
+      >{t(locale, "boardLensHintPointer")}</span
+    ><span class="lens-hint" data-hint="touch"
+      >{t(locale, "boardLensHintTouch")}</span
+    >
+  </lens-caption>
+</lenticular-card>
+
+<script>
+  import { mountLenticular, type LenticularHandle } from "@/lib/lenticular"
+
+  /**
+   * 自主定制元素：SSR 出的就是完整内容（两张图上下并列），挂载时写
+   * `data-ready` 把它们叠成一张卡并接管指针。View Transitions 会重跑 body
+   * 脚本，所以先查 `customElements.get`；断开时 destroy，免得 rAF 活过它的页面。
+   */
+  if (!customElements.get("lenticular-card")) {
+    customElements.define(
+      "lenticular-card",
+      class extends HTMLElement {
+        #handle: LenticularHandle | null = null
+
+        connectedCallback(): void {
+          if (this.#handle) return
+          this.#handle = mountLenticular(this)
+        }
+
+        disconnectedCallback(): void {
+          this.#handle?.destroy()
+          this.#handle = null
+        }
+      },
+    )
+  }
+</script>
